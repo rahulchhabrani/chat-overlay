@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 290px;
+      background: #12121f;
+      color: #ddd;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 14px;
+      font-size: 13px;
+    }
+    .title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.7px;
+      color: #444; margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      background: #1c1c2e; border: 1px solid #2a2a40; border-radius: 6px;
+      color: #eee; padding: 8px 11px; font-size: 13px; outline: none;
+      transition: border-color 0.15s; margin-bottom: 12px;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    .section { margin-bottom: 4px; }
+    .section-header {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 8px;
+    }
+    .platform-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .section-label { font-size: 11px; font-weight: 700; color: #666; }
+
+    hr { border: none; border-top: 1px solid #1e1e30; margin: 12px 0; }
+
+    .row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .row > div { flex: 1; }
+    input[type="number"] {
+      width: 100%;
+      background: #1c1c2e; border: 1px solid #2a2a40; border-radius: 6px;
+      color: #eee; padding: 7px 10px; font-size: 12px; outline: none;
+    }
+    .range-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .range-row label { margin: 0; white-space: nowrap; }
+    input[type="range"] { flex: 1; accent-color: #9147ff; }
+    .range-val { font-size: 11px; color: #555; width: 28px; text-align: right; }
+
+    .btn {
+      width: 100%; background: #9147ff; color: #fff;
+      border: none; border-radius: 6px; padding: 9px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn:hover { background: #7d2ff0; }
+    .status { font-size: 11px; text-align: center; margin-top: 7px; min-height: 14px; }
+
+    .hint { font-size: 10px; color: #333; margin-top: -8px; margin-bottom: 12px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="title">💬 Chess Chat Overlay</div>
+
+  <!-- Twitch -->
+  <div class="section">
+    <div class="section-header">
+      <div class="platform-dot" style="background:#9147ff;"></div>
+      <span class="section-label">TWITCH</span>
+    </div>
+    <label>Channel name</label>
+    <input type="text" id="twitch" placeholder="rahulgambit" style="--accent:#9147ff;">
+  </div>
+
+  <!-- Kick -->
+  <div class="section">
+    <div class="section-header">
+      <div class="platform-dot" style="background:#53FC18;"></div>
+      <span class="section-label">KICK</span>
+    </div>
+    <label>Channel name</label>
+    <input type="text" id="kick" placeholder="rahulgambit" style="--accent:#53FC18;">
+  </div>
+
+  <!-- Website -->
+  <div class="section">
+    <div class="section-header">
+      <div class="platform-dot" style="background:#4fc3f7;"></div>
+      <span class="section-label">SHOW OVERLAY ON</span>
+    </div>
+    <label>Website (hostname)</label>
+    <input type="text" id="site" placeholder="chess.com" style="--accent:#4fc3f7;">
+  </div>
+
+  <p class="hint">YouTube chat is automatic — just keep your live stream tab open.</p>
+
+  <hr>
+
+  <div class="row">
+    <div><label>Width (px)</label><input type="number" id="width" value="300" min="150" max="600"></div>
+    <div><label>Height (px)</label><input type="number" id="height" value="460" min="130" max="900"></div>
+  </div>
+  <div class="range-row">
+    <label>Opacity</label>
+    <input type="range" id="opacity" min="10" max="100" value="92">
+    <span class="range-val" id="opacityVal">92%</span>
+  </div>
+
+  <button class="btn" id="save">Save &amp; Connect</button>
+  <div class="status" id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
