@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Chess Chat Overlay",
+  "name": "Chat Overlay",
   "version": "4.0",
-  "description": "Read your Twitch, Kick + YouTube chat on chess.com while you play",
+  "description": "Overlay Twitch, Kick & YouTube chat on any website",
   "permissions": [
     "storage",
     "tabs"
