@@ -144,8 +144,11 @@
       });
       document.addEventListener('mousemove', e => {
         if (!dragging) return;
-        root.style.left = (e.clientX - dox) + 'px';
-        root.style.top  = (e.clientY - doy) + 'px';
+        const w = parseInt(root.style.width) || 300;
+        const newLeft = Math.max(-w + 60, Math.min(window.innerWidth - 60, e.clientX - dox));
+        const newTop  = Math.max(0, Math.min(window.innerHeight - 30, e.clientY - doy));
+        root.style.left = newLeft + 'px';
+        root.style.top  = newTop  + 'px';
       });
       document.addEventListener('mouseup', () => {
         if (!dragging) return; dragging = false;
@@ -230,6 +233,12 @@
         root.style.opacity = String(msg.opacity);
         root.style.width   = msg.width  + 'px';
         if (!collapsed) root.style.height = msg.height + 'px';
+        // Snap back on-screen if dragged above viewport
+        const curTop = parseInt(root.style.top);
+        if (!isNaN(curTop) && curTop < 0) {
+          root.style.top = '16px';
+          chrome.storage.sync.set({ overlayTop: 16 });
+        }
         if (msg.twitchChannel !== undefined) {
           if (msg.twitchChannel) { clearPlaceholder(); connectTwitch(msg.twitchChannel); }
           else { closeWs(twitchWs); twitchWs = null; platformStatus.twitch = ''; updateHeader(); }
