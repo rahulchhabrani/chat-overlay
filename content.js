@@ -10,10 +10,27 @@
 
   function initOverlay() {
 
+  // ── Inject scroll-button style ────────────────────────────────────────────
+  if (!document.getElementById('cco-styles')) {
+    const style = document.createElement('style');
+    style.id = 'cco-styles';
+    style.textContent = `
+      #cco-scroll-btn {
+        position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+        background: rgba(100,65,200,0.88); color: #fff; border: none;
+        border-radius: 20px; padding: 5px 14px; font-size: 11px; font-weight: 700;
+        cursor: pointer; white-space: nowrap; z-index: 2; letter-spacing: 0.3px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: background 0.15s;
+      }
+      #cco-scroll-btn:hover { background: rgba(120,80,230,0.95); }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   // ── State ──────────────────────────────────────────────────────────────────
   let twitchWs = null, twitchReconnect = null, twitchChannel = '';
   let kickWs   = null, kickReconnect   = null;
-  let statusEl = null, msgList = null;
+  let statusEl = null, msgList = null, scrollBtn = null;
   let autoScroll = true;
   const platformStatus = { twitch: '', kick: '', yt: '' };
 
@@ -70,8 +87,8 @@
       });
 
       statusEl = document.createElement('span');
-      statusEl.style.cssText = 'flex:1;font-size:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.2px;';
-      statusEl.textContent = '💬 CHAT';
+      statusEl.style.cssText = 'flex:1;font-size:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.2px;display:flex;align-items:center;gap:5px;';
+      updateHeader();
 
       const btns = document.createElement('div');
       btns.style.cssText = 'display:flex;gap:2px;flex-shrink:0;';
@@ -97,6 +114,17 @@
         scrollbarColor: '#2a2a3a #111116',
       });
 
+      // ── Scroll-to-bottom button ────────────────────────────────────────────
+      scrollBtn = document.createElement('button');
+      scrollBtn.id = 'cco-scroll-btn';
+      scrollBtn.textContent = '↓ new messages';
+      scrollBtn.style.display = 'none';
+      scrollBtn.addEventListener('click', () => {
+        msgList.scrollTop = msgList.scrollHeight;
+        autoScroll = true;
+        scrollBtn.style.display = 'none';
+      });
+
       // ── Resize handle ──────────────────────────────────────────────────────
       const resizer = document.createElement('div');
       Object.assign(resizer.style, {
@@ -112,6 +140,7 @@
 
       root.appendChild(header);
       root.appendChild(msgList);
+      root.appendChild(scrollBtn);
       root.appendChild(resizer);
       document.body.appendChild(root);
 
@@ -130,6 +159,7 @@
       // ── Auto-scroll ────────────────────────────────────────────────────────
       msgList.addEventListener('scroll', () => {
         autoScroll = (msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight) < 40;
+        if (autoScroll) scrollBtn.style.display = 'none';
       });
 
       // ── Drag ───────────────────────────────────────────────────────────────
@@ -220,7 +250,9 @@
         if (msg.type === 'YT_CHAT_MSG') {
           platformStatus.yt = '🔴YT';
           updateHeader();
-          renderMessage(msg.username, msg.color || '#FF6B6B', msg.text, '', 'yt', msg.isSuperchat);
+          // Strip leading @ from YouTube usernames
+          const ytUser = (msg.username || '').replace(/^@+/, '');
+          renderMessage(ytUser, msg.color || '#FF6B6B', msg.text, '', 'yt', msg.isSuperchat);
           return;
         }
         if (msg.type === 'CCO_CLOSE') {
@@ -421,17 +453,30 @@
     msgList.appendChild(row);
 
     while (msgList.children.length > 200) msgList.removeChild(msgList.firstChild);
-    if (autoScroll) msgList.scrollTop = msgList.scrollHeight;
+
+    if (autoScroll) {
+      msgList.scrollTop = msgList.scrollHeight;
+    } else if (!skipSave && scrollBtn) {
+      scrollBtn.style.display = 'block';
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function updateHeader() {
     if (!statusEl) return;
-    const parts = [platformStatus.twitch, platformStatus.kick, platformStatus.yt].filter(Boolean);
-    if (!parts.length) { statusEl.textContent = '💬 CHAT'; return; }
-    statusEl.innerHTML = parts.map(p => {
-      return `<span style="opacity:0.9;">${esc(p)}</span>`;
-    }).join('<span style="color:#333;margin:0 4px;">·</span>');
+    // Three dots: purple = Twitch, green = Kick, red = YouTube
+    // Lit up (bright) when that platform is connected, dim (#333) when not
+    const dots = [
+      { color: '#9147ff', active: !!platformStatus.twitch },
+      { color: '#53FC18', active: !!platformStatus.kick },
+      { color: '#FF0000', active: !!platformStatus.yt },
+    ];
+    const dotsHtml = dots.map(d =>
+      `<span style="width:7px;height:7px;border-radius:50%;background:${d.active ? d.color : '#2a2a3a'};display:inline-block;flex-shrink:0;"></span>`
+    ).join('');
+    statusEl.innerHTML =
+      `<span style="color:#aaa;font-size:10px;font-weight:600;letter-spacing:0.5px;">💬 LIVE CHAT</span>` +
+      `<span style="display:inline-flex;align-items:center;gap:4px;">${dotsHtml}</span>`;
   }
 
   function showPlaceholder() {
