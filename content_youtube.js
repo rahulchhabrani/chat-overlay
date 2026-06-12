@@ -4,86 +4,103 @@
   if (window.__cco_yt_active) return;
   window.__cco_yt_active = true;
 
+  // Module-level refs so reconnect logic always has the right context
+  let iframeEl       = null;
+  let activeObserver = null;  // currently running MutationObserver
+  let watchdogTimer  = null;
+
   if (location.pathname === '/live_chat') {
-    waitForContainer(document);
+    setupForDoc(document);
   } else if (location.pathname === '/watch') {
     findIframe();
   }
 
-  // ── Find the live-chat iframe ─────────────────────────────────────────────
+  // ── 1. Find the iframe and wire a PERPETUAL load listener ────────────────
+  // The load event fires every time YouTube reloads the chat iframe (it does
+  // this silently after extended streams). Without this we'd be watching the
+  // old, discarded document forever.
   function findIframe() {
-    const tryConnect = (iframe) => {
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (doc && doc.readyState !== 'loading') {
-        waitForContainer(doc);
-      } else {
-        iframe.addEventListener('load', () => {
-          const d = iframe.contentDocument || iframe.contentWindow?.document;
-          if (d) waitForContainer(d);
+    const attach = (el) => {
+      iframeEl = el;
+      // Perpetual: re-runs setupForDoc every time the iframe navigates
+      el.addEventListener('load', () => {
+        const d = el.contentDocument || el.contentWindow?.document;
+        if (d) setupForDoc(d);
+      });
+      // Connect to whatever document is already loaded
+      const doc = el.contentDocument || el.contentWindow?.document;
+      if (!doc || doc.readyState === 'loading') {
+        el.addEventListener('load', () => {
+          const d = el.contentDocument || el.contentWindow?.document;
+          if (d) setupForDoc(d);
         }, { once: true });
+      } else {
+        setupForDoc(doc);
       }
     };
 
-    const iframe = document.querySelector('#live-chat-iframe');
-    if (iframe) { tryConnect(iframe); return; }
+    const existing = document.querySelector('#live-chat-iframe');
+    if (existing) { attach(existing); return; }
 
-    // Wait for iframe to appear — no setTimeout polling
+    // Wait for the iframe to appear (no setTimeout polling)
     const obs = new MutationObserver(() => {
       const el = document.querySelector('#live-chat-iframe');
-      if (el) { obs.disconnect(); tryConnect(el); }
+      if (el) { obs.disconnect(); attach(el); }
     });
     obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
   }
 
-  // ── Wait for yt-live-chat-item-list-renderer ──────────────────────────────
-  // Observing this parent (rather than #items directly) means we survive #items rebuilds.
-  function waitForContainer(doc) {
+  // ── 2. Find yt-live-chat-item-list-renderer inside this doc ───────────────
+  function setupForDoc(doc) {
+    disconnectCurrent(); // always clean up before creating new observer
+
     const getRenderer = () => doc.querySelector('yt-live-chat-item-list-renderer');
     const r = getRenderer();
-    if (r) { attachObserver(r); return; }
+    if (r) { startObserving(r); return; }
 
+    // Wait for the renderer to appear
     const obs = new MutationObserver(() => {
       const found = getRenderer();
-      if (found) { obs.disconnect(); attachObserver(found); }
+      if (found) { obs.disconnect(); startObserving(found); }
     });
-    obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+    const root = doc.body || doc.documentElement;
+    if (root) obs.observe(root, { childList: true, subtree: true });
   }
 
-  // ── Attach MutationObserver with auto-reconnect on detach ─────────────────
-  function attachObserver(renderer) {
+  // ── 3. Observe with subtree — survives #items rebuilds ────────────────────
+  function startObserving(renderer) {
+    disconnectCurrent();
+
     const seen = new Set();
-    let mo = null;
+    const mo = new MutationObserver((mutations) => {
+      if (seen.size > 400) seen.clear();
+      mutations.forEach(m => m.addedNodes.forEach(n => handleNode(n, seen)));
+    });
+    mo.observe(renderer, { childList: true, subtree: true });
+    activeObserver = mo;
 
-    function connect(node) {
-      if (mo) mo.disconnect();
-      mo = new MutationObserver((mutations) => {
-        // If YouTube rebuilt the renderer and detached this node, reconnect
-        if (!node.isConnected) {
-          mo.disconnect(); mo = null;
-          waitForContainer(node.ownerDocument);
-          return;
-        }
-        if (seen.size > 400) seen.clear();
-        mutations.forEach(m => m.addedNodes.forEach(n => handleNode(n, seen)));
-      });
-      // subtree:true catches messages even when YouTube replaces #items inside the renderer
-      mo.observe(node, { childList: true, subtree: true });
-    }
-
-    connect(renderer);
-
-    // Watchdog: safety net in case isConnected check is never reached
-    const watchdog = setInterval(() => {
-      if (!renderer.isConnected) {
-        clearInterval(watchdog);
-        if (mo) { mo.disconnect(); mo = null; }
-        const doc = renderer.ownerDocument;
-        if (doc && doc.body) waitForContainer(doc);
+    // Watchdog: if renderer leaves the DOM (YouTube rebuilt the structure),
+    // reconnect using the FRESH iframeEl.contentDocument — not stale ownerDocument
+    watchdogTimer = setInterval(() => {
+      if (renderer.isConnected) return;
+      disconnectCurrent();
+      if (iframeEl) {
+        const freshDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
+        if (freshDoc && freshDoc.body) setupForDoc(freshDoc);
+      } else {
+        // live_chat standalone page — ownerDocument is still valid
+        setupForDoc(renderer.ownerDocument);
       }
-    }, 10000);
+    }, 8000);
   }
 
-  // ── Parse and relay a single chat node ───────────────────────────────────
+  // ── Cleanup helper — always call before creating a new observer ───────────
+  function disconnectCurrent() {
+    if (activeObserver) { activeObserver.disconnect(); activeObserver = null; }
+    if (watchdogTimer)  { clearInterval(watchdogTimer); watchdogTimer  = null; }
+  }
+
+  // ── Parse and relay a single chat node ────────────────────────────────────
   function handleNode(node, seen) {
     if (!node.tagName) return;
     const tag = node.tagName.toLowerCase();
@@ -92,9 +109,8 @@
     const isMember = tag === 'yt-live-chat-membership-item-renderer';
     if (!isText && !isSuper && !isMember) return;
 
-    // Deduplicate: prefer node id, fall back to content fingerprint
     const nodeId = node.id || node.getAttribute('id');
-    const key = nodeId || node.textContent.trim().slice(0, 80);
+    const key    = nodeId || node.textContent.trim().slice(0, 80);
     if (key) {
       if (seen.has(key)) return;
       seen.add(key);
