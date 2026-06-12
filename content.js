@@ -34,6 +34,17 @@
   let autoScroll = true;
   const platformStatus = { twitch: '', kick: '', yt: '' };
 
+  // ── In-memory message cache + debounced save ──────────────────────────────
+  let msgCache = [];
+  let saveTimer = null;
+  function scheduleSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      chrome.storage.local.set({ cco_messages: msgCache });
+      saveTimer = null;
+    }, 2000);
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   chrome.storage.sync.get(
     ['twitchChannel', 'kickChannel', 'overlayWidth', 'overlayHeight', 'overlayOpacity', 'overlayLeft', 'overlayTop'],
@@ -146,7 +157,8 @@
 
       // ── Restore saved messages ────────────────────────────────────────────
       chrome.storage.local.get(['cco_messages'], function(stored) {
-        const saved = stored.cco_messages || [];
+        msgCache = stored.cco_messages || [];
+        const saved = msgCache;
         if (saved.length > 0) {
           saved.forEach(m => renderMessage(m.username, m.color, m.text, m.badges || '', m.platform, m.isSuperchat, true));
         }
@@ -154,6 +166,18 @@
         if (s.twitchChannel) connectTwitch(s.twitchChannel);
         if (s.kickChannel)   connectKick(s.kickChannel);
         if (!s.twitchChannel && !s.kickChannel && saved.length === 0) showPlaceholder();
+      });
+
+      // ── Delegated hover (one listener instead of two per row) ─────────────
+      msgList.addEventListener('mouseover', e => {
+        let t = e.target;
+        while (t && t.parentNode !== msgList) t = t.parentNode;
+        if (t && t !== msgList) t.style.background = t.dataset.sc ? 'rgba(255,152,0,0.13)' : 'rgba(255,255,255,0.04)';
+      });
+      msgList.addEventListener('mouseout', e => {
+        let t = e.target;
+        while (t && t.parentNode !== msgList) t = t.parentNode;
+        if (t && t !== msgList) t.style.background = t.dataset.sc ? 'rgba(255,152,0,0.08)' : '';
       });
 
       // ── Auto-scroll ────────────────────────────────────────────────────────
@@ -409,21 +433,16 @@
     clearPlaceholder();
 
     if (!skipSave) {
-      chrome.storage.local.get(['cco_messages'], function(stored) {
-        const msgs = stored.cco_messages || [];
-        msgs.push({ username, color, text, badges: twitchBadges, platform, isSuperchat });
-        if (msgs.length > 100) msgs.splice(0, msgs.length - 100);
-        chrome.storage.local.set({ cco_messages: msgs });
-      });
+      msgCache.push({ username, color, text, badges: twitchBadges, platform, isSuperchat });
+      if (msgCache.length > 100) msgCache.splice(0, msgCache.length - 100);
+      scheduleSave();
     }
 
     const pi = PLATFORM_ICON[platform] || { bg: '#444', svg: '' };
 
     const row = document.createElement('div');
+    row.dataset.sc = isSuperchat ? '1' : '';
     row.style.cssText = `display:flex;align-items:center;gap:10px;padding:5px 12px;flex-shrink:0;transition:background 0.1s;${isSuperchat ? 'background:rgba(255,152,0,0.08);' : ''}`;
-
-    row.addEventListener('mouseenter', () => { row.style.background = isSuperchat ? 'rgba(255,152,0,0.13)' : 'rgba(255,255,255,0.04)'; });
-    row.addEventListener('mouseleave', () => { row.style.background = isSuperchat ? 'rgba(255,152,0,0.08)' : ''; });
 
     const iconBox = document.createElement('div');
     iconBox.style.cssText = `width:20px;height:20px;border-radius:5px;background:${pi.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
