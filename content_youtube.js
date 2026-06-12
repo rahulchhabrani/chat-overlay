@@ -1,185 +1,143 @@
 // Injected into YouTube watch/live_chat pages.
-// Polls YouTube's live chat API from the content script (same-origin, cookies
-// auto-included, no service-worker sleep issues).
+//
+// Content scripts run in an isolated JS world and CANNOT read page-set globals
+// like window.ytInitialData. Fix: inject a <script> tag to run polling code in
+// the PAGE's JS world (full access to ytInitialData, ytcfg, cookies), then
+// relay messages back via postMessage.
 (function () {
-  if (window.__cco_yt_active) return;
-  window.__cco_yt_active = true;
+  if (window.__cco_yt_injected) return;
+  window.__cco_yt_injected = true;
 
-  let continuation = null;
-  let pollTimer    = null;
-  const seen       = new Set();
+  // ── Relay postMessages from page-world poller → background → chess tab ────
+  window.addEventListener('message', e => {
+    if (e.source !== window || e.data?.__cco !== 1) return;
+    chrome.runtime.sendMessage({
+      type:        'YT_CHAT_MSG',
+      username:    e.data.u,
+      text:        e.data.t,
+      color:       e.data.c,
+      isSuperchat: e.data.s,
+    }).catch(() => {});
+  });
 
-  // ── Build innertube context from ytcfg (same values YouTube's own client uses)
-  function getContext() {
-    const cfg = window.ytcfg?.data_ || {};
-    return {
-      client: {
-        clientName:    'WEB',
-        clientVersion: cfg.INNERTUBE_CLIENT_VERSION || '2.20260612.00.00',
-        hl:            cfg.HL  || 'en',
-        gl:            cfg.GL  || 'US',
-        visitorData:   cfg.VISITOR_DATA || '',
-      }
-    };
+  // ── Inject polling script into PAGE context ───────────────────────────────
+  const script = document.createElement('script');
+  script.textContent = `(function(){
+  if(window.__cco_poll)return;
+  window.__cco_poll=true;
+
+  var cont=null, pollTimer=null, seen=new Set();
+
+  function getCtx(){
+    var d=(window.ytcfg&&window.ytcfg.data_)||{};
+    return{client:{
+      clientName:'WEB',
+      clientVersion:d.INNERTUBE_CLIENT_VERSION||'2.20260612.00.00',
+      hl:d.HL||'en',gl:d.GL||'US',
+      visitorData:d.VISITOR_DATA||''
+    }};
   }
 
-  // ── Extract continuation token from ytInitialData ─────────────────────────
-  function init() {
-    try {
-      const yd = window.ytInitialData;
-      if (!yd) return false;
-
-      const conts = yd?.contents?.liveChatRenderer?.continuations;
-      if (!conts?.length) {
-        console.log('[CCO] ytInitialData found but no continuations:', yd?.contents);
-        return false;
-      }
-      const c = conts[0];
-      continuation = c?.invalidationContinuationData?.continuation
-                  || c?.timedContinuationData?.continuation
-                  || c?.reloadContinuationData?.continuation
-                  || null;
-      console.log('[CCO] continuation token:', continuation ? 'found ✓' : 'missing ✗');
-    } catch (e) {
-      console.error('[CCO] init error:', e);
-    }
-    return !!continuation;
+  function init(){
+    try{
+      var yd=window.ytInitialData;
+      if(!yd)return false;
+      var lr=yd.contents&&yd.contents.liveChatRenderer;
+      var cs=lr&&lr.continuations;
+      if(!cs||!cs.length)return false;
+      var c=cs[0];
+      cont=(c.invalidationContinuationData&&c.invalidationContinuationData.continuation)
+          ||(c.timedContinuationData&&c.timedContinuationData.continuation)
+          ||(c.reloadContinuationData&&c.reloadContinuationData.continuation)||null;
+      return!!cont;
+    }catch(e){return false;}
   }
 
-  // ── Poll YouTube's live chat API ──────────────────────────────────────────
-  async function pollLoop() {
-    if (!continuation) return;
-    try {
-      const ctx = getContext();
-      const res = await fetch('/youtubei/v1/live_chat/get_live_chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type':           'application/json',
-          'x-youtube-client-name':  '1',
-          'x-youtube-client-version': ctx.client.clientVersion,
-          'x-origin':               'https://www.youtube.com',
-        },
-        body: JSON.stringify({ context: ctx, continuation }),
-      });
+  function sched(ms){if(pollTimer)clearTimeout(pollTimer);pollTimer=setTimeout(poll,ms);}
 
-      if (!res.ok) {
-        console.warn('[CCO] YT API HTTP error:', res.status);
-        schedule(5000);
-        return;
-      }
-
-      const data = await res.json();
-      const lcc  = data?.continuationContents?.liveChatContinuation;
-      if (!lcc) {
-        console.warn('[CCO] Unexpected API response shape:', JSON.stringify(data).slice(0, 200));
-        schedule(5000);
-        return;
-      }
-
-      // Rotate continuation token
-      const nc    = lcc?.continuations?.[0];
-      const next  = nc?.invalidationContinuationData?.continuation
-                 || nc?.timedContinuationData?.continuation;
-      const delay = Math.min(
-        nc?.invalidationContinuationData?.timeoutMs
-        || nc?.timedContinuationData?.timeoutMs
-        || 5000, 5000
-      );
-      if (next) continuation = next;
-
-      // Relay new messages to background → chess tab
-      const actions = lcc?.actions || [];
-      for (const action of actions) {
-        const item = action?.addChatItemAction?.item;
-        if (!item) continue;
-        const msg = parseItem(item);
-        if (!msg || seen.has(msg.id)) continue;
+  function poll(){
+    if(!cont)return;
+    var ctx=getCtx();
+    fetch('/youtubei/v1/live_chat/get_live_chat',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-youtube-client-name':'1',
+        'x-youtube-client-version':ctx.client.clientVersion,
+        'x-origin':'https://www.youtube.com'
+      },
+      body:JSON.stringify({context:ctx,continuation:cont})
+    }).then(function(r){if(!r.ok){sched(5000);return null;}return r.json();})
+    .then(function(data){
+      if(!data)return;
+      var lcc=data.continuationContents&&data.continuationContents.liveChatContinuation;
+      if(!lcc){sched(5000);return;}
+      var nc=(lcc.continuations||[])[0];
+      var next=(nc&&nc.invalidationContinuationData&&nc.invalidationContinuationData.continuation)
+              ||(nc&&nc.timedContinuationData&&nc.timedContinuationData.continuation);
+      var delay=Math.min(
+        (nc&&nc.invalidationContinuationData&&nc.invalidationContinuationData.timeoutMs)
+        ||(nc&&nc.timedContinuationData&&nc.timedContinuationData.timeoutMs)||5000,5000);
+      if(next)cont=next;
+      (lcc.actions||[]).forEach(function(a){
+        var item=a.addChatItemAction&&a.addChatItemAction.item;
+        if(!item)return;
+        var msg=parse(item);
+        if(!msg||seen.has(msg.id))return;
         seen.add(msg.id);
-        if (seen.size > 2000) {
-          const arr = [...seen]; seen.clear(); arr.slice(-500).forEach(id => seen.add(id));
-        }
-        chrome.runtime.sendMessage({
-          type: 'YT_CHAT_MSG',
-          username: msg.username, text: msg.text, color: msg.color, isSuperchat: msg.isSuperchat,
-        }).catch(() => {});
-      }
-
-      schedule(delay);
-    } catch (e) {
-      console.error('[CCO] pollLoop error:', e);
-      schedule(5000);
-    }
+        if(seen.size>2000){var arr=Array.from(seen);seen=new Set(arr.slice(-500));}
+        window.postMessage({__cco:1,u:msg.u,t:msg.t,c:msg.c,s:msg.s},'*');
+      });
+      sched(delay);
+    }).catch(function(){sched(5000);});
   }
 
-  function schedule(ms) {
-    if (pollTimer) clearTimeout(pollTimer);
-    pollTimer = setTimeout(pollLoop, ms);
+  function parse(item){
+    var r=item.liveChatTextMessageRenderer
+         ||item.liveChatPaidMessageRenderer
+         ||item.liveChatMembershipItemRenderer;
+    if(!r)return null;
+    var paid=!!item.liveChatPaidMessageRenderer;
+    var member=!!item.liveChatMembershipItemRenderer;
+    var id=r.id||Math.random().toString(36).slice(2);
+    var u=(r.authorName&&r.authorName.simpleText)||'';
+    if(!u)return null;
+    var t='';
+    if(r.message&&r.message.runs){
+      t=r.message.runs.map(function(x){
+        return x.text!=null?x.text:((x.emoji&&x.emoji.shortcuts&&x.emoji.shortcuts[0])||(x.emoji&&x.emoji.emojiId)||'');
+      }).join('');
+    }else if(r.headerSubtext&&r.headerSubtext.runs){
+      t=r.headerSubtext.runs.map(function(x){return x.text||'';}).join('');
+    }
+    if(!t)t=member?'\\u2605 New member!':'';
+    if(!t)return null;
+    var c=null;
+    (r.authorBadges||[]).forEach(function(b){
+      if(c)return;
+      var tip=((b.liveChatAuthorBadgeRenderer&&b.liveChatAuthorBadgeRenderer.tooltip)||'').toLowerCase();
+      if(tip.indexOf('owner')>=0)c='#FFD700';
+      else if(tip.indexOf('moderator')>=0)c='#5E84F1';
+      else if(tip.indexOf('member')>=0)c='#2BA640';
+    });
+    if(paid)c='#FF9800';
+    if(member)c=c||'#2BA640';
+    return{id:id,u:u,t:t,c:c,s:paid};
   }
 
-  // ── Parse one chat item from the API response ─────────────────────────────
-  function parseItem(item) {
-    const text   = item.liveChatTextMessageRenderer;
-    const paid   = item.liveChatPaidMessageRenderer;
-    const member = item.liveChatMembershipItemRenderer;
-    const r      = text || paid || member;
-    if (!r) return null;
-
-    const id       = r.id || Math.random().toString(36).slice(2);
-    const username = r.authorName?.simpleText || '';
-    if (!username) return null;
-
-    let msgText = '';
-    if (r.message?.runs) {
-      msgText = r.message.runs
-        .map(run => run.text != null ? run.text : (run.emoji?.shortcuts?.[0] || run.emoji?.emojiId || ''))
-        .join('');
-    } else if (r.headerSubtext?.runs) {
-      msgText = r.headerSubtext.runs.map(run => run.text || '').join('');
-    }
-    if (!msgText) msgText = member ? '★ New member!' : '';
-    if (!msgText) return null;
-
-    let color = null;
-    for (const badge of (r.authorBadges || [])) {
-      const tip = badge.liveChatAuthorBadgeRenderer?.tooltip?.toLowerCase() || '';
-      if (tip.includes('owner'))     { color = '#FFD700'; break; }
-      if (tip.includes('moderator')) { color = '#5E84F1'; break; }
-      if (tip.includes('member'))    { color = '#2BA640'; break; }
-    }
-    if (paid)   color = '#FF9800';
-    if (member) color = color || '#2BA640';
-
-    return { id, username, text: msgText, color, isSuperchat: !!paid };
-  }
-
-  // ── Start ─────────────────────────────────────────────────────────────────
-  function start() {
-    if (init()) {
-      console.log('[CCO] Starting YT live chat poll');
-      pollLoop();
-      return;
-    }
-    // ytInitialData not ready — retry for up to 30s
-    let attempts = 0;
-    const iv = setInterval(() => {
-      if (init()) {
-        clearInterval(iv);
-        console.log('[CCO] Starting YT live chat poll (delayed)');
-        pollLoop();
-      } else if (++attempts > 60) {
-        clearInterval(iv);
-        console.warn('[CCO] Gave up waiting for ytInitialData after 30s');
-      }
-    }, 500);
-  }
-
-  start();
-
-  // Catch up immediately when the tab is opened
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && continuation) {
-      if (pollTimer) clearTimeout(pollTimer);
-      pollLoop();
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'&&cont){
+      if(pollTimer)clearTimeout(pollTimer);poll();
     }
   });
+
+  if(init()){poll();}
+  else{
+    var n=0,iv=setInterval(function(){
+      if(init()||++n>60){clearInterval(iv);if(cont)poll();}
+    },500);
+  }
+})()`;
+  (document.head || document.documentElement).appendChild(script);
+  script.remove();
 })();
