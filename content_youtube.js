@@ -10,7 +10,7 @@
     findIframe();
   }
 
-  // ── Find the live-chat iframe — MutationObserver instead of setTimeout polling ──
+  // ── Find the live-chat iframe ─────────────────────────────────────────────
   function findIframe() {
     const tryConnect = (iframe) => {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -27,7 +27,7 @@
     const iframe = document.querySelector('#live-chat-iframe');
     if (iframe) { tryConnect(iframe); return; }
 
-    // Watch for iframe insertion — fires as soon as it appears, no delay
+    // Wait for iframe to appear — no setTimeout polling
     const obs = new MutationObserver(() => {
       const el = document.querySelector('#live-chat-iframe');
       if (el) { obs.disconnect(); tryConnect(el); }
@@ -35,34 +35,55 @@
     obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
   }
 
-  // ── Wait for the message list container — MutationObserver, no polling ────────
+  // ── Wait for yt-live-chat-item-list-renderer ──────────────────────────────
+  // Observing this parent (rather than #items directly) means we survive #items rebuilds.
   function waitForContainer(doc) {
-    const getContainer = () =>
-      doc.querySelector('#items.yt-live-chat-item-list-renderer') ||
-      doc.querySelector('yt-live-chat-item-list-renderer #items');
+    const getRenderer = () => doc.querySelector('yt-live-chat-item-list-renderer');
+    const r = getRenderer();
+    if (r) { attachObserver(r); return; }
 
-    const c = getContainer();
-    if (c) { observe(c); return; }
-
-    const root = doc.body || doc.documentElement;
-    if (!root) return;
     const obs = new MutationObserver(() => {
-      const found = getContainer();
-      if (found) { obs.disconnect(); observe(found); }
+      const found = getRenderer();
+      if (found) { obs.disconnect(); attachObserver(found); }
     });
-    obs.observe(root, { childList: true, subtree: true });
+    obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
   }
 
-  // ── MutationObserver on the message list ──────────────────────────────────────
-  function observe(container) {
+  // ── Attach MutationObserver with auto-reconnect on detach ─────────────────
+  function attachObserver(renderer) {
     const seen = new Set();
-    new MutationObserver((mutations) => {
-      // Trim seen set to prevent unbounded growth (YouTube recycles DOM nodes)
-      if (seen.size > 300) seen.clear();
-      mutations.forEach(m => m.addedNodes.forEach(n => handleNode(n, seen)));
-    }).observe(container, { childList: true });
+    let mo = null;
+
+    function connect(node) {
+      if (mo) mo.disconnect();
+      mo = new MutationObserver((mutations) => {
+        // If YouTube rebuilt the renderer and detached this node, reconnect
+        if (!node.isConnected) {
+          mo.disconnect(); mo = null;
+          waitForContainer(node.ownerDocument);
+          return;
+        }
+        if (seen.size > 400) seen.clear();
+        mutations.forEach(m => m.addedNodes.forEach(n => handleNode(n, seen)));
+      });
+      // subtree:true catches messages even when YouTube replaces #items inside the renderer
+      mo.observe(node, { childList: true, subtree: true });
+    }
+
+    connect(renderer);
+
+    // Watchdog: safety net in case isConnected check is never reached
+    const watchdog = setInterval(() => {
+      if (!renderer.isConnected) {
+        clearInterval(watchdog);
+        if (mo) { mo.disconnect(); mo = null; }
+        const doc = renderer.ownerDocument;
+        if (doc && doc.body) waitForContainer(doc);
+      }
+    }, 10000);
   }
 
+  // ── Parse and relay a single chat node ───────────────────────────────────
   function handleNode(node, seen) {
     if (!node.tagName) return;
     const tag = node.tagName.toLowerCase();
@@ -71,9 +92,9 @@
     const isMember = tag === 'yt-live-chat-membership-item-renderer';
     if (!isText && !isSuper && !isMember) return;
 
-    // Deduplicate: prefer node id, fall back to content hash
+    // Deduplicate: prefer node id, fall back to content fingerprint
     const nodeId = node.id || node.getAttribute('id');
-    const key = nodeId || (node.textContent.trim().slice(0, 80));
+    const key = nodeId || node.textContent.trim().slice(0, 80);
     if (key) {
       if (seen.has(key)) return;
       seen.add(key);
