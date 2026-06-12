@@ -34,10 +34,10 @@
   const platformStatus = { twitch: '', kick: '', yt: '' };
 
   // ── Performance: in-memory cache, rAF queue, DOM node pool ───────────────
-  let msgCache    = [];   // source-of-truth for persistence
-  let renderQueue = [];   // messages waiting for next animation frame
-  let rafId       = null; // requestAnimationFrame handle
-  const nodePool  = [];   // recycled DOM row nodes (max 30)
+  let msgCache    = [];
+  let renderQueue = [];
+  let rafId       = null;
+  const nodePool  = [];
 
   // ── Save strategy: 30s debounce + guaranteed beforeunload write ───────────
   let saveTimer = null;
@@ -60,8 +60,7 @@
     yt:     { bg: '#FF0000', svg: `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>` },
   };
 
-  // ── Build a row element (pure, no side-effects) ───────────────────────────
-  // Reuses pooled nodes; uses textContent for user data (no innerHTML/XSS risk)
+  // ── Build a row element ───────────────────────────────────────────────────
   function buildRow(username, color, text, twitchBadges, platform, isSuperchat) {
     const pi = PLATFORM_ICON[platform] || { bg: '#444', svg: '' };
 
@@ -69,35 +68,29 @@
     row.dataset.sc = isSuperchat ? '1' : '';
     row.style.cssText = `display:flex;align-items:center;gap:10px;padding:5px 12px;flex-shrink:0;transition:background 0.1s;${isSuperchat ? 'background:rgba(255,152,0,0.08);' : ''}`;
 
-    // Platform icon (SVG is our own static markup — innerHTML is safe here)
     const iconBox = document.createElement('div');
     iconBox.style.cssText = `width:20px;height:20px;border-radius:5px;background:${pi.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
     iconBox.innerHTML = pi.svg;
 
-    // Content wrapper
     const content = document.createElement('div');
     content.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.45;word-break:break-word;';
 
-    // Twitch role badges (emoji via textContent — safe)
     if (twitchBadges) {
       const addBadge = ch => { const b = document.createElement('span'); b.style.cssText = 'font-size:10px;margin-right:2px;vertical-align:middle;'; b.textContent = ch; content.appendChild(b); };
-      if (twitchBadges.includes('broadcaster'))     addBadge('🎙');
-      else if (twitchBadges.includes('moderator'))  addBadge('⚔️');
-      if (twitchBadges.includes('subscriber'))      addBadge('⭐');
-      if (twitchBadges.includes('vip'))             addBadge('💎');
+      if (twitchBadges.includes('broadcaster'))     addBadge('\uD83C\uDF99');
+      else if (twitchBadges.includes('moderator'))  addBadge('\u2694\uFE0F');
+      if (twitchBadges.includes('subscriber'))      addBadge('\u2B50');
+      if (twitchBadges.includes('vip'))             addBadge('\uD83D\uDC8E');
     }
 
-    // Username — textContent, no HTML parsing
     const nameSpan = document.createElement('span');
     nameSpan.style.cssText = `color:${color || autoColor(username)};font-weight:700;`;
     nameSpan.textContent = username;
 
-    // Separator
     const sep = document.createElement('span');
     sep.style.cssText = 'color:#555;';
     sep.textContent = '  ';
 
-    // Message text — textContent, no HTML parsing
     const msgSpan = document.createElement('span');
     msgSpan.style.cssText = 'color:#ffffff;font-weight:400;';
     msgSpan.textContent = text;
@@ -110,28 +103,23 @@
     return row;
   }
 
-  // ── rAF flush: batches all queued messages into one DOM write ─────────────
   function flushQueue() {
     rafId = null;
     if (!renderQueue.length || !msgList) return;
-
-    const batch = renderQueue.splice(0); // drain queue atomically
+    const batch = renderQueue.splice(0);
     const frag  = document.createDocumentFragment();
     batch.forEach(m => frag.appendChild(buildRow(m.username, m.color, m.text, m.twitchBadges, m.platform, m.isSuperchat)));
-    msgList.appendChild(frag); // single DOM write for entire batch
-
-    // Trim excess nodes — recycle into pool instead of GC
+    msgList.appendChild(frag);
     while (msgList.children.length > 200) {
       const old = msgList.firstChild;
       msgList.removeChild(old);
       if (nodePool.length < 30) {
         old.dataset.sc = '';
         old.style.background = '';
-        while (old.firstChild) old.removeChild(old.firstChild); // clear children
+        while (old.firstChild) old.removeChild(old.firstChild);
         nodePool.push(old);
       }
     }
-
     if (autoScroll) {
       msgList.scrollTop = msgList.scrollHeight;
     } else if (scrollBtn) {
@@ -139,22 +127,18 @@
     }
   }
 
-  // ── renderMessage: save + enqueue (live messages) ─────────────────────────
   function renderMessage(username, color, text, twitchBadges, platform, isSuperchat, skipSave) {
     if (!msgList) return;
     clearPlaceholder();
-
     if (!skipSave) {
       msgCache.push({ username, color, text, badges: twitchBadges, platform, isSuperchat });
       if (msgCache.length > 100) msgCache.splice(0, msgCache.length - 100);
       scheduleSave();
     }
-
     renderQueue.push({ username, color, text, twitchBadges, platform, isSuperchat });
     if (!rafId) rafId = requestAnimationFrame(flushQueue);
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   chrome.storage.sync.get(
     ['twitchChannel', 'kickChannel', 'overlayWidth', 'overlayHeight', 'overlayOpacity', 'overlayLeft', 'overlayTop'],
     function (s) {
@@ -162,7 +146,6 @@
       const height  = s.overlayHeight  || 460;
       const opacity = s.overlayOpacity != null ? s.overlayOpacity : 0.92;
 
-      // Root — contain:layout+style prevents overlay from triggering page reflows
       const root = document.createElement('div');
       root.id = 'cco-root';
       Object.assign(root.style, {
@@ -173,7 +156,7 @@
         borderRadius: '10px', overflow: 'hidden',
         boxShadow: '0 6px 30px rgba(0,0,0,0.7)',
         opacity: String(opacity),
-        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
         background: '#111116',
         contain: 'layout style',
       });
@@ -183,7 +166,6 @@
         root.style.left = s.overlayLeft + 'px'; root.style.top = s.overlayTop + 'px';
       }
 
-      // Header
       const header = document.createElement('div');
       Object.assign(header.style, {
         background: '#1a1a22', borderBottom: '1px solid #222230',
@@ -200,15 +182,12 @@
       const btns = document.createElement('div');
       btns.style.cssText = 'display:flex;gap:2px;flex-shrink:0;';
       btns.innerHTML =
-        `<button id="cco-dim"      title="Dim"      style="${BS()}">◑</button>` +
-        `<button id="cco-collapse" title="Collapse" style="${BS()}">—</button>` +
-        `<button id="cco-close"    title="Close"    style="${BS()}">✕</button>`;
+        `<button id="cco-dim"      title="Dim"      style="${BS()}">\u25D1</button>` +
+        `<button id="cco-collapse" title="Collapse" style="${BS()}">\u2014</button>` +
+        `<button id="cco-close"    title="Close"    style="${BS()}">\u2715</button>`;
       header.appendChild(statusEl);
       header.appendChild(btns);
 
-      // Message list
-      // contain:layout+style+paint = browser skips full-page recalc on every message
-      // willChange:transform = own compositor layer, smooth GPU scroll
       msgList = document.createElement('div');
       Object.assign(msgList.style, {
         flex: '1', overflowY: 'auto', overflowX: 'hidden',
@@ -218,10 +197,9 @@
         willChange: 'transform',
       });
 
-      // Scroll-to-bottom button
       scrollBtn = document.createElement('button');
       scrollBtn.id = 'cco-scroll-btn';
-      scrollBtn.textContent = '↓ new messages';
+      scrollBtn.textContent = '\u2193 new messages';
       scrollBtn.style.display = 'none';
       scrollBtn.addEventListener('click', () => {
         msgList.scrollTop = msgList.scrollHeight;
@@ -229,7 +207,6 @@
         scrollBtn.style.display = 'none';
       });
 
-      // Resize handle
       const resizer = document.createElement('div');
       Object.assign(resizer.style, {
         position: 'absolute', bottom: '0', left: '0',
@@ -243,7 +220,6 @@
       root.appendChild(resizer);
       document.body.appendChild(root);
 
-      // Delegated hover (1 listener pair vs 2 per row)
       msgList.addEventListener('mouseover', e => {
         let t = e.target;
         while (t && t.parentNode !== msgList) t = t.parentNode;
@@ -255,7 +231,6 @@
         if (t && t !== msgList) t.style.background = t.dataset.sc ? 'rgba(255,152,0,0.08)' : '';
       });
 
-      // Restore saved messages — bulk DocumentFragment, single DOM write
       chrome.storage.local.get(['cco_messages'], function(stored) {
         msgCache = stored.cco_messages || [];
         if (msgCache.length > 0) {
@@ -270,13 +245,11 @@
         if (!s.twitchChannel && !s.kickChannel && msgCache.length === 0) showPlaceholder();
       });
 
-      // Passive: browser scroll thread never blocked by JS
       msgList.addEventListener('scroll', () => {
         autoScroll = (msgList.scrollHeight - msgList.scrollTop - msgList.clientHeight) < 40;
         if (autoScroll) scrollBtn.style.display = 'none';
       }, { passive: true });
 
-      // Drag
       let dragging = false, dox = 0, doy = 0;
       header.addEventListener('mousedown', e => {
         if (e.target.tagName === 'BUTTON') return;
@@ -297,7 +270,6 @@
         chrome.storage.sync.set({ overlayLeft: parseInt(root.style.left), overlayTop: parseInt(root.style.top) });
       });
 
-      // Resize
       let resizing = false, rx0, ry0, rw0, rh0, rl0, rt0;
       resizer.addEventListener('mousedown', e => {
         resizing = true; rx0 = e.clientX; ry0 = e.clientY;
@@ -318,17 +290,16 @@
         chrome.storage.sync.set({ overlayWidth: parseInt(root.style.width), overlayHeight: parseInt(root.style.height) });
       });
 
-      // Buttons
       let collapsed = false, savedH = height;
       root.querySelector('#cco-collapse').addEventListener('click', () => {
         collapsed = !collapsed;
         if (collapsed) {
           savedH = parseInt(root.style.height) || height;
           msgList.style.display = 'none'; root.style.height = 'auto';
-          root.querySelector('#cco-collapse').textContent = '▢';
+          root.querySelector('#cco-collapse').textContent = '\u25A2';
         } else {
           root.style.height = savedH + 'px'; msgList.style.display = 'flex';
-          root.querySelector('#cco-collapse').textContent = '—';
+          root.querySelector('#cco-collapse').textContent = '\u2014';
         }
       });
 
@@ -353,10 +324,9 @@
         root.remove();
       });
 
-      // Runtime messages
       chrome.runtime.onMessage.addListener(msg => {
         if (msg.type === 'YT_CHAT_MSG') {
-          platformStatus.yt = '🔴YT'; updateHeader();
+          platformStatus.yt = '\uD83D\uDD34YT'; updateHeader();
           renderMessage((msg.username || '').replace(/^@+/, ''), msg.color || null, msg.text, '', 'yt', msg.isSuperchat);
           return;
         }
@@ -383,14 +353,13 @@
     }
   );
 
-  // ── Twitch IRC WebSocket ──────────────────────────────────────────────────
   function connectTwitch(channel) {
     closeWs(twitchWs);
     if (twitchReconnect) { clearTimeout(twitchReconnect); twitchReconnect = null; }
     twitchChannel = channel.toLowerCase().replace(/^#/, '').trim();
-    platformStatus.twitch = '🟣…'; updateHeader();
+    platformStatus.twitch = '\uD83D\uDFE3\u2026'; updateHeader();
     try { twitchWs = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); }
-    catch (e) { platformStatus.twitch = '🟣❌'; updateHeader(); return; }
+    catch (e) { platformStatus.twitch = '\uD83D\uDFE3\u274C'; updateHeader(); return; }
     twitchWs.onopen = () => {
       twitchWs.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
       twitchWs.send('PASS SCHMOOPIIE');
@@ -398,8 +367,8 @@
       twitchWs.send('JOIN #' + twitchChannel);
     };
     twitchWs.onmessage = e => e.data.split('\r\n').forEach(l => { if (l) parseTwitch(l); });
-    twitchWs.onclose = () => { platformStatus.twitch = '🟣↻'; updateHeader(); twitchReconnect = setTimeout(() => connectTwitch(twitchChannel), 5000); };
-    twitchWs.onerror = () => { platformStatus.twitch = '🟣❌'; updateHeader(); };
+    twitchWs.onclose = () => { platformStatus.twitch = '\uD83D\uDFE3\u21BB'; updateHeader(); twitchReconnect = setTimeout(() => connectTwitch(twitchChannel), 5000); };
+    twitchWs.onerror = () => { platformStatus.twitch = '\uD83D\uDFE3\u274C'; updateHeader(); };
   }
 
   function parseTwitch(line) {
@@ -411,21 +380,20 @@
       rest = rest.slice(sp + 1);
     }
     if (rest.includes(' 366 ') || (rest.includes('JOIN') && rest.includes('#' + twitchChannel) && rest.includes('justinfan'))) {
-      platformStatus.twitch = '🟣' + twitchChannel; updateHeader(); return;
+      platformStatus.twitch = '\uD83D\uDFE3' + twitchChannel; updateHeader(); return;
     }
     const m = rest.match(/^:(\w+)!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #\w+ :(.+)$/);
     if (!m) return;
     renderMessage(tags['display-name'] || m[1], tags['color'] || null, m[2], tags['badges'] || '', 'twitch', false);
   }
 
-  // ── Kick Pusher WebSocket ─────────────────────────────────────────────────
   function connectKick(channel) {
     closeWs(kickWs);
     if (kickReconnect) { clearTimeout(kickReconnect); kickReconnect = null; }
     const slug = channel.toLowerCase().trim();
-    platformStatus.kick = '🟢…'; updateHeader();
+    platformStatus.kick = '\uD83D\uDFE2\u2026'; updateHeader();
     chrome.runtime.sendMessage({ type: 'GET_KICK_CHATROOM', channel: slug }, res => {
-      if (!res || !res.chatroomId) { platformStatus.kick = '🟢❌'; updateHeader(); return; }
+      if (!res || !res.chatroomId) { platformStatus.kick = '\uD83D\uDFE2\u274C'; updateHeader(); return; }
       openKickWs(res.chatroomId, slug);
     });
   }
@@ -433,28 +401,29 @@
   function openKickWs(chatroomId, slug) {
     const url = `wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=7.6.0&flash=false`;
     try { kickWs = new WebSocket(url); }
-    catch (e) { platformStatus.kick = '🟢❌'; updateHeader(); return; }
-    kickWs.onopen = () => { platformStatus.kick = '🟢…'; updateHeader(); };
+    catch (e) { platformStatus.kick = '\uD83D\uDFE2\u274C'; updateHeader(); return; }
+    kickWs.onopen = () => { platformStatus.kick = '\uD83D\uDFE2\u2026'; updateHeader(); };
     kickWs.onmessage = e => {
       let msg; try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.event === 'pusher:connection_established') {
         kickWs.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: `chatrooms.${chatroomId}.v2` } })); return;
       }
       if (msg.event === 'pusher:ping') { kickWs.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
-      if (msg.event === 'pusher_internal:subscription_succeeded') { platformStatus.kick = '🟢' + slug; updateHeader(); return; }
+      if (msg.event === 'pusher_internal:subscription_succeeded') { platformStatus.kick = '\uD83D\uDFE2' + slug; updateHeader(); return; }
       if (msg.event === 'App\\Events\\ChatMessageEvent') {
         try {
           const d = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
-          const text = d.content || '';
+          const rawText = d.content || '';
+          // Kick encodes emotes as [emote:12345:EmoteName] — strip the tags, keep the name
+          const text = rawText.replace(/\[emote:\d+:([^\]]+)\]/g, '$1');
           if (text) renderMessage(d.sender?.username || '?', d.sender?.identity?.color || null, text, '', 'kick', false);
         } catch { }
       }
     };
-    kickWs.onclose = () => { platformStatus.kick = '🟢↻'; updateHeader(); kickReconnect = setTimeout(() => openKickWs(chatroomId, slug), 5000); };
-    kickWs.onerror = () => { platformStatus.kick = '🟢❌'; updateHeader(); };
+    kickWs.onclose = () => { platformStatus.kick = '\uD83D\uDFE2\u21BB'; updateHeader(); kickReconnect = setTimeout(() => openKickWs(chatroomId, slug), 5000); };
+    kickWs.onerror = () => { platformStatus.kick = '\uD83D\uDFE2\u274C'; updateHeader(); };
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   function updateHeader() {
     if (!statusEl) return;
     const dots = [
@@ -466,14 +435,14 @@
       `<span style="width:7px;height:7px;border-radius:50%;background:${d.active ? d.color : '#2a2a3a'};display:inline-block;flex-shrink:0;"></span>`
     ).join('');
     statusEl.innerHTML =
-      `<span style="color:#aaa;font-size:10px;font-weight:600;letter-spacing:0.5px;">💬 LIVE CHAT</span>` +
+      `<span style="color:#aaa;font-size:10px;font-weight:600;letter-spacing:0.5px;">\uD83D\uDCAC LIVE CHAT</span>` +
       `<span style="display:inline-flex;align-items:center;gap:4px;">${dotsHtml}</span>`;
   }
 
   function showPlaceholder() {
     if (!msgList) return;
     Object.assign(msgList.style, { alignItems: 'center', justifyContent: 'center', textAlign: 'center' });
-    msgList.innerHTML = `<div style="color:#444;font-size:12px;padding:20px;line-height:1.8;"><div style="font-size:26px;margin-bottom:10px;">💬</div><div style="color:#555;font-weight:600;margin-bottom:4px;">Not configured</div><div style="color:#333;font-size:11px;">Click the extension icon to set up</div></div>`;
+    msgList.innerHTML = `<div style="color:#444;font-size:12px;padding:20px;line-height:1.8;"><div style="font-size:26px;margin-bottom:10px;">\uD83D\uDCAC</div><div style="color:#555;font-weight:600;margin-bottom:4px;">Not configured</div><div style="color:#333;font-size:11px;">Click the extension icon to set up</div></div>`;
   }
 
   function clearPlaceholder() {
