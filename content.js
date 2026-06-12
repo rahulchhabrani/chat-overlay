@@ -66,24 +66,16 @@
   };
 
   // ── Build a row element (pure, no side-effects) ───────────────────────────
-  // Reuses pooled nodes; uses textContent for user data (no innerHTML/XSS risk)
   function buildRow(username, color, text, twitchBadges, platform, isSuperchat) {
     const pi = PLATFORM_ICON[platform] || { bg: '#444', svg: '' };
-
     const row = nodePool.pop() || document.createElement('div');
     row.dataset.sc = isSuperchat ? '1' : '';
     row.style.cssText = `display:flex;align-items:center;gap:10px;padding:5px 12px;flex-shrink:0;transition:background 0.1s;animation:cco-in 0.18s ease forwards;${isSuperchat ? 'background:rgba(255,152,0,0.08);' : ''}`;
-
-    // Platform icon (SVG is our own static markup — innerHTML is safe here)
     const iconBox = document.createElement('div');
     iconBox.style.cssText = `width:20px;height:20px;border-radius:5px;background:${pi.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
     iconBox.innerHTML = pi.svg;
-
-    // Content wrapper
     const content = document.createElement('div');
     content.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.45;word-break:break-word;';
-
-    // Twitch role badges (emoji via textContent — safe)
     if (twitchBadges) {
       const addBadge = ch => { const b = document.createElement('span'); b.style.cssText = 'font-size:10px;margin-right:2px;vertical-align:middle;'; b.textContent = ch; content.appendChild(b); };
       if (twitchBadges.includes('broadcaster'))     addBadge('🎙');
@@ -91,22 +83,15 @@
       if (twitchBadges.includes('subscriber'))      addBadge('⭐');
       if (twitchBadges.includes('vip'))             addBadge('💎');
     }
-
-    // Username — textContent, no HTML parsing
     const nameSpan = document.createElement('span');
     nameSpan.style.cssText = `color:${color || autoColor(username)};font-weight:700;`;
     nameSpan.textContent = username;
-
-    // Separator
     const sep = document.createElement('span');
     sep.style.cssText = 'color:#555;';
     sep.textContent = '  ';
-
-    // Message text — textContent, no HTML parsing
     const msgSpan = document.createElement('span');
     msgSpan.style.cssText = 'color:#ffffff;font-weight:400;';
     msgSpan.textContent = text;
-
     content.appendChild(nameSpan);
     content.appendChild(sep);
     content.appendChild(msgSpan);
@@ -119,25 +104,21 @@
   function flushQueue() {
     rafId = null;
     if (!renderQueue.length || !msgList) return;
-
     const batch = renderQueue.splice(0, 5); // max 5 per frame — prevents burst pop
     const frag  = document.createDocumentFragment();
     batch.forEach(m => frag.appendChild(buildRow(m.username, m.color, m.text, m.twitchBadges, m.platform, m.isSuperchat)));
     msgList.appendChild(frag);
     if (renderQueue.length > 0 && !rafId) rafId = requestAnimationFrame(flushQueue);
-
-    // Trim excess nodes — recycle into pool instead of GC
     while (msgList.children.length > 200) {
       const old = msgList.firstChild;
       msgList.removeChild(old);
       if (nodePool.length < 30) {
         old.dataset.sc = '';
         old.style.background = '';
-        while (old.firstChild) old.removeChild(old.firstChild); // clear children
+        while (old.firstChild) old.removeChild(old.firstChild);
         nodePool.push(old);
       }
     }
-
     if (autoScroll) {
       programmaticScroll = true; msgList.scrollTo({ top: msgList.scrollHeight, behavior: 'smooth' });
     } else if (scrollBtn) {
@@ -149,13 +130,11 @@
   function renderMessage(username, color, text, twitchBadges, platform, isSuperchat, skipSave) {
     if (!msgList) return;
     clearPlaceholder();
-
     if (!skipSave) {
       msgCache.push({ username, color, text, badges: twitchBadges, platform, isSuperchat });
       if (msgCache.length > 100) msgCache.splice(0, msgCache.length - 100);
       scheduleSave();
     }
-
     renderQueue.push({ username, color, text, twitchBadges, platform, isSuperchat });
     if (!rafId) rafId = requestAnimationFrame(flushQueue);
   }
@@ -168,7 +147,6 @@
       const height  = s.overlayHeight  || 460;
       const opacity = s.overlayOpacity != null ? s.overlayOpacity : 0.92;
 
-      // Root — contain:layout+style prevents overlay from triggering page reflows
       const root = document.createElement('div');
       root.id = 'cco-root';
       Object.assign(root.style, {
@@ -189,7 +167,6 @@
         root.style.left = s.overlayLeft + 'px'; root.style.top = s.overlayTop + 'px';
       }
 
-      // Header
       const header = document.createElement('div');
       Object.assign(header.style, {
         background: '#1a1a22', borderBottom: '1px solid #222230',
@@ -212,7 +189,6 @@
       header.appendChild(statusEl);
       header.appendChild(btns);
 
-      // Message list
       msgList = document.createElement('div');
       Object.assign(msgList.style, {
         flex: '1', overflowY: 'auto', overflowX: 'hidden',
@@ -223,7 +199,6 @@
         scrollBehavior: 'smooth',
       });
 
-      // Scroll-to-bottom button
       scrollBtn = document.createElement('button');
       scrollBtn.id = 'cco-scroll-btn';
       scrollBtn.textContent = '↓ new messages';
@@ -234,7 +209,6 @@
         scrollBtn.style.display = 'none';
       });
 
-      // Resize handle
       const resizer = document.createElement('div');
       Object.assign(resizer.style, {
         position: 'absolute', bottom: '0', left: '0',
@@ -248,7 +222,6 @@
       root.appendChild(resizer);
       document.body.appendChild(root);
 
-      // Delegated hover (1 listener pair vs 2 per row)
       msgList.addEventListener('mouseover', e => {
         let t = e.target;
         while (t && t.parentNode !== msgList) t = t.parentNode;
@@ -260,7 +233,6 @@
         if (t && t !== msgList) t.style.background = t.dataset.sc ? 'rgba(255,152,0,0.08)' : '';
       });
 
-      // Restore saved messages
       chrome.storage.local.get(['cco_messages'], function(stored) {
         msgCache = stored.cco_messages || [];
         if (msgCache.length > 0) {
@@ -282,7 +254,6 @@
         if (autoScroll) scrollBtn.style.display = 'none';
       }, { passive: true });
 
-      // Drag
       let dragging = false, dox = 0, doy = 0;
       header.addEventListener('mousedown', e => {
         if (e.target.tagName === 'BUTTON') return;
@@ -303,7 +274,6 @@
         chrome.storage.sync.set({ overlayLeft: parseInt(root.style.left), overlayTop: parseInt(root.style.top) });
       });
 
-      // Resize
       let resizing = false, rx0, ry0, rw0, rh0, rl0, rt0;
       resizer.addEventListener('mousedown', e => {
         resizing = true; rx0 = e.clientX; ry0 = e.clientY;
@@ -324,7 +294,6 @@
         chrome.storage.sync.set({ overlayWidth: parseInt(root.style.width), overlayHeight: parseInt(root.style.height) });
       });
 
-      // Buttons
       let collapsed = false, savedH = height;
       root.querySelector('#cco-collapse').addEventListener('click', () => {
         collapsed = !collapsed;
@@ -359,7 +328,6 @@
         root.remove();
       });
 
-      // Runtime messages
       chrome.runtime.onMessage.addListener(msg => {
         if (msg.type === 'YT_CHAT_MSG') {
           platformStatus.yt = '🔴YT'; updateHeader();
@@ -473,7 +441,7 @@
       `<span style="width:7px;height:7px;border-radius:50%;background:${d.active ? d.color : '#2a2a3a'};display:inline-block;flex-shrink:0;"></span>`
     ).join('');
     statusEl.innerHTML =
-      `<span style="color:#aaa;font-size:10px;font-weight:600;letter-spacing:0.5px;">💬 LIVE CHAT</span>` +
+      `<span style="color:#aaa;font-size:10px;font-weight:600;letter-spacing:0.5px;">LIVE CHAT</span>` +
       `<span style="display:inline-flex;align-items:center;gap:4px;">${dotsHtml}</span>`;
   }
 
