@@ -252,7 +252,7 @@
           updateHeader();
           // Strip leading @ from YouTube usernames
           const ytUser = (msg.username || '').replace(/^@+/, '');
-          renderMessage(ytUser, msg.color || '#FF6B6B', msg.text, '', 'yt', msg.isSuperchat);
+          renderMessage(ytUser, msg.color || null, msg.text, '', 'yt', msg.isSuperchat);
           return;
         }
         if (msg.type === 'CCO_CLOSE') {
