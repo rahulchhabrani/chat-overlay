@@ -440,7 +440,7 @@
       if (twitchBadges.includes('vip'))        badgeHtml += '<span style="font-size:10px;margin-right:2px;vertical-align:middle;">💎</span>';
     }
 
-    const uColor = (platform === 'twitch' && color) ? esc(color) : '#ffffff';
+    const uColor = color || autoColor(username);
 
     content.innerHTML =
       `${badgeHtml}` +
