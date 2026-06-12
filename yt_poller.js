@@ -94,9 +94,21 @@
     var t = '';
     if (r.message && r.message.runs) {
       t = r.message.runs.map(function (x) {
-        return x.text != null ? x.text
-          : ((x.emoji && x.emoji.shortcuts && x.emoji.shortcuts[0])
-            || (x.emoji && x.emoji.emojiId) || '');
+        // x.text can be "" on emoji runs — check truthiness, not null
+        if (x.text) return x.text;
+        if (x.emoji) {
+          var ei = x.emoji.emojiId || '';
+          // Standard emoji: emojiId IS the Unicode character (e.g. "\uD83D\uDC4D")
+          if (ei && !x.emoji.isCustomEmoji) return ei;
+          // Custom channel emoji: prefer accessibility label, then shortcut
+          var acc = x.emoji.image && x.emoji.image.accessibility
+                 && x.emoji.image.accessibility.accessibilityData
+                 && x.emoji.image.accessibility.accessibilityData.label;
+          if (acc) return '[' + acc + ']';
+          if (x.emoji.shortcuts && x.emoji.shortcuts[0]) return x.emoji.shortcuts[0];
+          return '';
+        }
+        return '';
       }).join('');
     } else if (r.headerSubtext && r.headerSubtext.runs) {
       t = r.headerSubtext.runs.map(function (x) { return x.text || ''; }).join('');
