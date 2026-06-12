@@ -1,79 +1,82 @@
 // Injected into YouTube watch pages and live_chat pages.
-// Reads live chat and relays to chess.com overlay via background.js
+// Reads live chat and relays to the overlay via background.js
 (function () {
   if (window.__cco_yt_active) return;
   window.__cco_yt_active = true;
 
-  const isLiveChatPage = location.pathname === '/live_chat';
-  const isWatchPage    = location.pathname === '/watch';
-
-  if (isLiveChatPage) {
-    // We're directly in the live_chat page (e.g. pop-out chat)
+  if (location.pathname === '/live_chat') {
     waitForContainer(document);
-  } else if (isWatchPage) {
-    // Watch page — chat lives inside an iframe (#live-chat-iframe)
-    // Both are youtube.com so we can access iframe.contentDocument directly
+  } else if (location.pathname === '/watch') {
     findIframe();
   }
 
-  // ── Find the live chat iframe on the watch page ────────────────────────────
+  // ── Find the live-chat iframe — MutationObserver instead of setTimeout polling ──
   function findIframe() {
-    const attempt = () => {
-      const iframe = document.querySelector('#live-chat-iframe');
-      if (!iframe) {
-        // Maybe not a live stream — check for popout iframe
-        return setTimeout(attempt, 3000);
-      }
-      const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-      if (!doc || doc.readyState === 'loading') {
-        return setTimeout(attempt, 2000);
-      }
-      waitForContainer(doc);
-    };
-    // Give the page time to load
-    setTimeout(attempt, 4000);
-  }
-
-  // ── Wait until the message list container exists, then observe ─────────────
-  function waitForContainer(doc) {
-    const attempt = () => {
-      const container =
-        doc.querySelector('#items.yt-live-chat-item-list-renderer') ||
-        doc.querySelector('yt-live-chat-item-list-renderer #items');
-      if (container) {
-        observe(container);
+    const tryConnect = (iframe) => {
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc && doc.readyState !== 'loading') {
+        waitForContainer(doc);
       } else {
-        setTimeout(attempt, 2000);
+        iframe.addEventListener('load', () => {
+          const d = iframe.contentDocument || iframe.contentWindow?.document;
+          if (d) waitForContainer(d);
+        }, { once: true });
       }
     };
-    attempt();
+
+    const iframe = document.querySelector('#live-chat-iframe');
+    if (iframe) { tryConnect(iframe); return; }
+
+    // Watch for iframe insertion — fires as soon as it appears, no delay
+    const obs = new MutationObserver(() => {
+      const el = document.querySelector('#live-chat-iframe');
+      if (el) { obs.disconnect(); tryConnect(el); }
+    });
+    obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
   }
 
-  // ── MutationObserver on the message list ──────────────────────────────────
+  // ── Wait for the message list container — MutationObserver, no polling ────────
+  function waitForContainer(doc) {
+    const getContainer = () =>
+      doc.querySelector('#items.yt-live-chat-item-list-renderer') ||
+      doc.querySelector('yt-live-chat-item-list-renderer #items');
+
+    const c = getContainer();
+    if (c) { observe(c); return; }
+
+    const root = doc.body || doc.documentElement;
+    if (!root) return;
+    const obs = new MutationObserver(() => {
+      const found = getContainer();
+      if (found) { obs.disconnect(); observe(found); }
+    });
+    obs.observe(root, { childList: true, subtree: true });
+  }
+
+  // ── MutationObserver on the message list ──────────────────────────────────────
   function observe(container) {
     const seen = new Set();
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((m) => {
-        m.addedNodes.forEach((node) => handleNode(node, seen));
-      });
-    });
-    observer.observe(container, { childList: true });
+    new MutationObserver((mutations) => {
+      // Trim seen set to prevent unbounded growth (YouTube recycles DOM nodes)
+      if (seen.size > 300) seen.clear();
+      mutations.forEach(m => m.addedNodes.forEach(n => handleNode(n, seen)));
+    }).observe(container, { childList: true });
   }
 
   function handleNode(node, seen) {
     if (!node.tagName) return;
     const tag = node.tagName.toLowerCase();
-
-    const isText    = tag === 'yt-live-chat-text-message-renderer';
-    const isSuper   = tag === 'yt-live-chat-paid-message-renderer';
-    const isMember  = tag === 'yt-live-chat-membership-item-renderer';
+    const isText   = tag === 'yt-live-chat-text-message-renderer';
+    const isSuper  = tag === 'yt-live-chat-paid-message-renderer';
+    const isMember = tag === 'yt-live-chat-membership-item-renderer';
     if (!isText && !isSuper && !isMember) return;
 
-    // Deduplicate by element id
+    // Deduplicate: prefer node id, fall back to content hash
     const nodeId = node.id || node.getAttribute('id');
-    if (nodeId) {
-      if (seen.has(nodeId)) return;
-      seen.add(nodeId);
+    const key = nodeId || (node.textContent.trim().slice(0, 80));
+    if (key) {
+      if (seen.has(key)) return;
+      seen.add(key);
     }
 
     const authorEl = node.querySelector('#author-name');
@@ -83,27 +86,22 @@
     if (!authorEl) return;
 
     const username = authorEl.textContent.trim();
-    const text     = msgEl ? msgEl.textContent.trim() : isMember ? '★ New member!' : '';
+    const text     = msgEl ? msgEl.textContent.trim() : (isMember ? '★ New member!' : '');
     if (!username || !text) return;
 
-    // Role-based colors
     let color = null;
     const badgesEl = node.querySelector('#author-badges');
     if (badgesEl) {
       const b = badgesEl.innerHTML;
-      if (b.includes('owner'))     color = '#FFD700';
+      if (b.includes('owner'))          color = '#FFD700';
       else if (b.includes('moderator')) color = '#5E84F1';
       else if (b.includes('member'))    color = '#2BA640';
     }
-    if (isSuper) color = '#FF9800';
+    if (isSuper)  color = '#FF9800';
     if (isMember) color = '#2BA640';
 
     chrome.runtime.sendMessage({
-      type:       'YT_CHAT_MSG',
-      username,
-      text,
-      color,
-      isSuperchat: isSuper,
+      type: 'YT_CHAT_MSG', username, text, color, isSuperchat: isSuper,
     }).catch(() => {});
   }
 })();
