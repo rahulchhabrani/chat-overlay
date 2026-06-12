@@ -1,32 +1,48 @@
 // Injected into YouTube watch/live_chat pages.
-//
-// Polls YouTube's live chat API directly from the content script.
-// Advantages over DOM scraping or background polling:
-//   • Same-origin fetch (youtube.com → youtube.com) — no CORS, cookies auto-included
-//   • Content script lives as long as the tab — no service worker sleep/restart issues
-//   • fetch() itself is NOT throttled in background tabs; only the scheduling timer is
-//   • visibilitychange immediately catches up after any throttled period
+// Polls YouTube's live chat API from the content script (same-origin, cookies
+// auto-included, no service-worker sleep issues).
 (function () {
   if (window.__cco_yt_active) return;
   window.__cco_yt_active = true;
 
-  let continuation  = null;
-  let clientVersion = '2.20260612.00.00';
-  let pollTimer     = null;
-  const seen        = new Set();
+  let continuation = null;
+  let pollTimer    = null;
+  const seen       = new Set();
+
+  // ── Build innertube context from ytcfg (same values YouTube's own client uses)
+  function getContext() {
+    const cfg = window.ytcfg?.data_ || {};
+    return {
+      client: {
+        clientName:    'WEB',
+        clientVersion: cfg.INNERTUBE_CLIENT_VERSION || '2.20260612.00.00',
+        hl:            cfg.HL  || 'en',
+        gl:            cfg.GL  || 'US',
+        visitorData:   cfg.VISITOR_DATA || '',
+      }
+    };
+  }
 
   // ── Extract continuation token from ytInitialData ─────────────────────────
   function init() {
     try {
-      const conts = window.ytInitialData?.contents?.liveChatRenderer?.continuations;
-      if (!conts?.length) return false;
+      const yd = window.ytInitialData;
+      if (!yd) return false;
+
+      const conts = yd?.contents?.liveChatRenderer?.continuations;
+      if (!conts?.length) {
+        console.log('[CCO] ytInitialData found but no continuations:', yd?.contents);
+        return false;
+      }
       const c = conts[0];
       continuation = c?.invalidationContinuationData?.continuation
                   || c?.timedContinuationData?.continuation
                   || c?.reloadContinuationData?.continuation
                   || null;
-      clientVersion = window.ytcfg?.data_?.INNERTUBE_CLIENT_VERSION || clientVersion;
-    } catch (e) {}
+      console.log('[CCO] continuation token:', continuation ? 'found ✓' : 'missing ✗');
+    } catch (e) {
+      console.error('[CCO] init error:', e);
+    }
     return !!continuation;
   }
 
@@ -34,20 +50,31 @@
   async function pollLoop() {
     if (!continuation) return;
     try {
-      // Relative URL = same-origin; cookies included automatically
+      const ctx = getContext();
       const res = await fetch('/youtubei/v1/live_chat/get_live_chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          context: { client: { clientName: 'WEB', clientVersion, hl: 'en', gl: 'US' } },
-          continuation,
-        })
+        headers: {
+          'Content-Type':           'application/json',
+          'x-youtube-client-name':  '1',
+          'x-youtube-client-version': ctx.client.clientVersion,
+          'x-origin':               'https://www.youtube.com',
+        },
+        body: JSON.stringify({ context: ctx, continuation }),
       });
-      if (!res.ok) { schedule(5000); return; }
+
+      if (!res.ok) {
+        console.warn('[CCO] YT API HTTP error:', res.status);
+        schedule(5000);
+        return;
+      }
 
       const data = await res.json();
       const lcc  = data?.continuationContents?.liveChatContinuation;
-      if (!lcc)  { schedule(5000); return; }
+      if (!lcc) {
+        console.warn('[CCO] Unexpected API response shape:', JSON.stringify(data).slice(0, 200));
+        schedule(5000);
+        return;
+      }
 
       // Rotate continuation token
       const nc    = lcc?.continuations?.[0];
@@ -61,7 +88,8 @@
       if (next) continuation = next;
 
       // Relay new messages to background → chess tab
-      for (const action of (lcc?.actions || [])) {
+      const actions = lcc?.actions || [];
+      for (const action of actions) {
         const item = action?.addChatItemAction?.item;
         if (!item) continue;
         const msg = parseItem(item);
@@ -78,6 +106,7 @@
 
       schedule(delay);
     } catch (e) {
+      console.error('[CCO] pollLoop error:', e);
       schedule(5000);
     }
   }
@@ -124,21 +153,29 @@
   }
 
   // ── Start ─────────────────────────────────────────────────────────────────
-  if (init()) {
-    pollLoop();
-  } else {
-    // ytInitialData not ready yet — retry until it appears (max 30s)
+  function start() {
+    if (init()) {
+      console.log('[CCO] Starting YT live chat poll');
+      pollLoop();
+      return;
+    }
+    // ytInitialData not ready — retry for up to 30s
     let attempts = 0;
     const iv = setInterval(() => {
-      if (init() || ++attempts > 60) {
+      if (init()) {
         clearInterval(iv);
-        if (continuation) pollLoop();
+        console.log('[CCO] Starting YT live chat poll (delayed)');
+        pollLoop();
+      } else if (++attempts > 60) {
+        clearInterval(iv);
+        console.warn('[CCO] Gave up waiting for ytInitialData after 30s');
       }
     }, 500);
   }
 
-  // When the user switches back to this tab, poll immediately to catch up
-  // from any period where the timer was throttled by Chrome
+  start();
+
+  // Catch up immediately when the tab is opened
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && continuation) {
       if (pollTimer) clearTimeout(pollTimer);
