@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Chess Chat Overlay",
-  "version": "4.1",
-  "description": "Read your Twitch, Kick + YouTube chat on chess.com while you play",
+  "name": "Chat Overlay",
+  "version": "4.2",
+  "description": "Overlay your Twitch, Kick & YouTube live chat on any website",
   "permissions": [
     "storage",
     "tabs"
@@ -10,6 +10,12 @@
   "host_permissions": [
     "*://*/*"
   ],
+  "icons": {
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -37,7 +43,13 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Chess Chat Overlay"
+    "default_title": "Chat Overlay",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "web_accessible_resources": [
     {
