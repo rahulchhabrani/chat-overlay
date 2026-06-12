@@ -57,6 +57,23 @@
     if (root) obs.observe(root, { childList: true, subtree: true });
   }
 
+  // ── Force YouTube chat to stay scrolled to bottom ────────────────────────
+  // YouTube uses virtual/windowed rendering: it only inserts new message nodes
+  // into the DOM when the chat is scrolled to the bottom. If auto-scroll is
+  // paused, new messages are never added to the DOM and polling finds nothing.
+  // We force-scroll every 1.5s so YouTube always renders new messages.
+  function forceScroll(doc) {
+    // Primary scroll container
+    const scroller = doc.querySelector('#item-scroller');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    // Also click the "scroll to bottom" / "resume" button if YouTube shows one
+    const resumeBtn = doc.querySelector(
+      '#show-more button, #scroll-to-bottom-button, ' +
+      'yt-live-chat-item-list-renderer #show-more'
+    );
+    if (resumeBtn) resumeBtn.click();
+  }
+
   // ── Poll every 300ms for new message nodes ────────────────────────────────
   // Polling is simpler and more reliable than a MutationObserver on YouTube's
   // dynamically managed chat DOM.
@@ -64,8 +81,12 @@
     if (pollTimer) clearInterval(pollTimer);
 
     const seen = new Set(); // tracks processed message IDs
+    let tick = 0;
 
     pollTimer = setInterval(() => {
+      // Force-scroll every 5 ticks (1.5s) to keep YouTube rendering new nodes
+      if (++tick % 5 === 0) forceScroll(doc);
+
       const nodes = doc.querySelectorAll(SELECTOR);
       if (!nodes.length) return;
 
