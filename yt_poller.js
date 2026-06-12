@@ -64,9 +64,10 @@
         var delay = Math.min(
           (nc && nc.invalidationContinuationData && nc.invalidationContinuationData.timeoutMs)
           || (nc && nc.timedContinuationData && nc.timedContinuationData.timeoutMs) || 5000,
-          5000
+          2500
         );
         if (next) cont = next;
+        var msgDelay = 0;
         (lcc.actions || []).forEach(function (a) {
           var item = a.addChatItemAction && a.addChatItemAction.item;
           if (!item) return;
@@ -74,7 +75,13 @@
           if (!msg || seen.has(msg.id)) return;
           seen.add(msg.id);
           if (seen.size > 2000) { var arr = Array.from(seen); seen = new Set(arr.slice(-500)); }
-          window.postMessage({ __cco: 1, u: msg.u, t: msg.t, c: msg.c, s: msg.s }, '*');
+          // Spread messages over time so they trickle in instead of all popping at once
+          (function(m, d) {
+            setTimeout(function() {
+              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s }, '*');
+            }, d);
+          })(msg, msgDelay);
+          msgDelay = Math.min(msgDelay + 80, 1200); // 80ms apart, max 1.2s spread
         });
         sched(delay);
       })
@@ -98,7 +105,7 @@
         if (x.text) return x.text;
         if (x.emoji) {
           var ei = x.emoji.emojiId || '';
-          // Standard emoji: emojiId IS the Unicode character (e.g. "\uD83D\uDC4D")
+          // Standard emoji: emojiId IS the Unicode character (e.g. "👍")
           if (ei && !x.emoji.isCustomEmoji) return ei;
           // Custom channel emoji: prefer accessibility label, then shortcut
           var acc = x.emoji.image && x.emoji.image.accessibility
@@ -113,7 +120,7 @@
     } else if (r.headerSubtext && r.headerSubtext.runs) {
       t = r.headerSubtext.runs.map(function (x) { return x.text || ''; }).join('');
     }
-    if (!t) t = member ? '\u2605 New member!' : '';
+    if (!t) t = member ? '★ New member!' : '';
     if (!t) return null;
     var c = null;
     (r.authorBadges || []).forEach(function (b) {
