@@ -17,12 +17,14 @@
       username:    e.data.u,
       text:        e.data.t,
       color:       e.data.c,
-      isSuperchat: e.data.s,
+      isSuperchat:  e.data.s,
       amount:      e.data.a,
+      headerColor: e.data.hc,
+      bodyColor:   e.data.bc,
     }).catch(() => {});
   });
 
-  // ── Inject yt_poller.js into PAGE context via extension URL ───────────────
+  // ── Inject yt_poller.js into PAGE context via extension URL ─────────────
   // Using src= (not textContent) bypasses YouTube's nonce-based CSP.
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL('yt_poller.js');
