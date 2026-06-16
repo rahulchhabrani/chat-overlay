@@ -38,7 +38,7 @@
     style.textContent = '#cco-scroll-btn{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(100,65,200,0.88);color:#fff;border:none;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;z-index:2;letter-spacing:0.3px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:background 0.15s;}#cco-scroll-btn:hover{background:rgba(120,80,230,0.95);}@keyframes cco-in{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}';
     (document.head || document.documentElement).appendChild(style);
   }
-  function buildRow(username, color, text, twitchBadges, platform, isSuperchat) {
+  function buildRow(username, color, text, twitchBadges, platform, isSuperchat, amount) {
     const pi = PLATFORM_ICON[platform] || { bg: '#444', svg: '' };
     const row = nodePool.pop() || document.createElement('div');
     row.dataset.sc = isSuperchat ? '1' : '';
@@ -64,7 +64,17 @@
     const msgSpan = document.createElement('span');
     msgSpan.style.cssText = 'color:#ffffff;font-weight:400;';
     msgSpan.textContent = text;
-    content.appendChild(nameSpan); content.appendChild(sep); content.appendChild(msgSpan);
+    content.appendChild(nameSpan);
+
+    // Superchat amount badge
+    if (isSuperchat && amount) {
+      const amtBadge = document.createElement('span');
+      amtBadge.style.cssText = 'background:rgba(255,152,0,0.25);color:#FF9800;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;';
+      amtBadge.textContent = amount;
+      content.appendChild(amtBadge);
+    }
+
+    content.appendChild(sep); content.appendChild(msgSpan);
     row.appendChild(iconBox); row.appendChild(content);
     return row;
   }
@@ -73,7 +83,7 @@
     if (!renderQueue.length || !msgList) return;
     const batch = renderQueue.splice(0, 5);
     const frag = document.createDocumentFragment();
-    batch.forEach(m => frag.appendChild(buildRow(m.username, m.color, m.text, m.twitchBadges, m.platform, m.isSuperchat)));
+    batch.forEach(m => frag.appendChild(buildRow(m.username, m.color, m.text, m.twitchBadges, m.platform, m.isSuperchat, m.amount)));
     msgList.appendChild(frag);
     if (renderQueue.length > 0 && !rafId) rafId = requestAnimationFrame(flushQueue);
     while (msgList.children.length > 200) {
@@ -83,15 +93,15 @@
     if (autoScroll) { programmaticScroll = true; msgList.scrollTo({ top: msgList.scrollHeight, behavior: 'smooth' }); }
     else if (scrollBtn) { scrollBtn.style.display = 'block'; }
   }
-  function renderMessage(username, color, text, twitchBadges, platform, isSuperchat, skipSave) {
+  function renderMessage(username, color, text, twitchBadges, platform, isSuperchat, skipSave, amount) {
     if (!msgList) return;
     clearPlaceholder();
     if (!skipSave) {
-      msgCache.push({ username, color, text, badges: twitchBadges, platform, isSuperchat });
+      msgCache.push({ username, color, text, badges: twitchBadges, platform, isSuperchat, amount });
       if (msgCache.length > 100) msgCache.splice(0, msgCache.length - 100);
       scheduleSave();
     }
-    renderQueue.push({ username, color, text, twitchBadges, platform, isSuperchat });
+    renderQueue.push({ username, color, text, twitchBadges, platform, isSuperchat, amount });
     if (!rafId) rafId = requestAnimationFrame(flushQueue);
   }
   chrome.storage.sync.get(
@@ -127,7 +137,7 @@
       msgList.addEventListener('mouseout', e => { let t = e.target; while (t && t.parentNode !== msgList) t = t.parentNode; if (t && t !== msgList) t.style.background = t.dataset.sc ? 'rgba(255,152,0,0.08)' : ''; });
       chrome.storage.local.get(['cco_messages'], function(stored) {
         msgCache = stored.cco_messages || [];
-        if (msgCache.length > 0) { clearPlaceholder(); const frag = document.createDocumentFragment(); msgCache.forEach(m => frag.appendChild(buildRow(m.username, m.color, m.text, m.badges || '', m.platform, m.isSuperchat))); msgList.appendChild(frag); programmaticScroll = true; msgList.scrollTo({ top: msgList.scrollHeight, behavior: 'smooth' }); }
+        if (msgCache.length > 0) { clearPlaceholder(); const frag = document.createDocumentFragment(); msgCache.forEach(m => frag.appendChild(buildRow(m.username, m.color, m.text, m.badges || '', m.platform, m.isSuperchat, m.amount))); msgList.appendChild(frag); programmaticScroll = true; msgList.scrollTo({ top: msgList.scrollHeight, behavior: 'smooth' }); }
         if (s.twitchChannel) chrome.runtime.sendMessage({ type: 'TWITCH_CONNECT', channel: s.twitchChannel });
         if (s.kickChannel)   chrome.runtime.sendMessage({ type: 'KICK_CONNECT', channel: s.kickChannel });
         if (!s.twitchChannel && !s.kickChannel && msgCache.length === 0) showPlaceholder();
@@ -152,7 +162,7 @@
         if (msg.type === 'KICK_MSG') { renderMessage(msg.username, msg.color, msg.text, '', 'kick', false); return; }
         if (msg.type === 'TWITCH_STATUS') { platformStatus.twitch = msg.status; updateHeader(); return; }
         if (msg.type === 'KICK_STATUS') { platformStatus.kick = msg.status; updateHeader(); return; }
-        if (msg.type === 'YT_CHAT_MSG') { platformStatus.yt = '🔴YT'; updateHeader(); renderMessage((msg.username || '').replace(/^@+/, ''), msg.color || null, msg.text, '', 'yt', msg.isSuperchat); return; }
+        if (msg.type === 'YT_CHAT_MSG') { platformStatus.yt = '🔴YT'; updateHeader(); renderMessage((msg.username || '').replace(/^@+/, ''), msg.color || null, msg.text, '', 'yt', msg.isSuperchat, false, msg.amount); return; }
         if (msg.type === 'CCO_CLOSE') { chrome.runtime.sendMessage({ type: 'TWITCH_DISCONNECT' }); chrome.runtime.sendMessage({ type: 'KICK_DISCONNECT' }); const r = document.getElementById('cco-root'); if (r) r.remove(); return; }
         if (msg.type !== 'CCO_UPDATE') return;
         root.style.opacity = String(msg.opacity); root.style.width = msg.width + 'px';
