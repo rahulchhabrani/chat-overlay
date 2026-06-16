@@ -112,14 +112,18 @@
         if (x.text) return x.text;
         if (x.emoji) {
           var ei = x.emoji.emojiId || '';
-          // Standard emoji: emojiId IS the Unicode character (e.g. "👍")
+          // Standard Unicode emoji: emojiId IS the character itself (e.g. "👍")
           if (ei && !x.emoji.isCustomEmoji) return ei;
-          // Custom channel emoji: prefer accessibility label, then shortcut
+          // Custom channel emoji: embed image URL using PUA delimiters \uE000…\uE002
+          // so the renderer can create <img> elements without innerHTML
           var acc = x.emoji.image && x.emoji.image.accessibility
                  && x.emoji.image.accessibility.accessibilityData
                  && x.emoji.image.accessibility.accessibilityData.label;
-          if (acc) return '[' + acc + ']';
-          if (x.emoji.shortcuts && x.emoji.shortcuts[0]) return x.emoji.shortcuts[0];
+          var thumbs = x.emoji.image && x.emoji.image.thumbnails;
+          var eurl = thumbs && thumbs[0] && thumbs[0].url || '';
+          var elbl = acc || (x.emoji.shortcuts && x.emoji.shortcuts[0]) || '';
+          if (eurl) return '' + eurl + '' + elbl + '';
+          if (elbl) return '[' + elbl + ']';
           return '';
         }
         return '';
