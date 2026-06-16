@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Multistream Chat Overlay</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #080812;
+  color: #e8e8f0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  padding: 64px 24px 80px;
+}
+.wrap { max-width: 640px; margin: 0 auto; }
+a { color: #a78bfa; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.back { display: inline-flex; align-items: center; gap: 6px; color: #6b6b80; font-size: 13px; margin-bottom: 48px; }
+h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+.updated { color: #6b6b80; font-size: 13px; margin-bottom: 40px; }
+h2 { font-size: 15px; font-weight: 700; margin: 32px 0 10px; color: #c4b5fd; }
+p { font-size: 14px; line-height: 1.8; color: #b0b0c0; }
+footer { margin-top: 56px; color: #6b6b80; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="https://chat.rchx.com">&#8592; chat.rchx.com</a>
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: June 2026</p>
+
+  <p>Multistream Chat Overlay is a free, open-source Chrome extension. This page explains what data the extension does and does not collect.</p>
+
+  <h2>What we collect</h2>
+  <p>The extension stores the following data locally in your browser using <code>chrome.storage.local</code>:</p>
+  <p>&#8226; Twitch channel name (entered by you in the popup)<br>
+     &#8226; Kick channel name (entered by you in the popup)<br>
+     &#8226; Your chosen target website (e.g. chess.com)<br>
+     &#8226; Recent chat messages (for history across page refreshes)</p>
+  <p>This data never leaves your device. It is not sent to any server, database, or third party.</p>
+
+  <h2>Third-party connections</h2>
+  <p>When you enter a channel name and connect, the extension opens a direct WebSocket connection from your browser to the platform's own servers:</p>
+  <p>&#8226; Twitch: <code>wss://irc-ws.chat.twitch.tv</code><br>
+     &#8226; Kick: <code>wss://ws-us2.pusher.com</code><br>
+     &#8226; YouTube: reads chat from an open YouTube tab in your browser</p>
+  <p>These connections are governed by each platform's own privacy policy. The extension does not intercept, log, or forward any data from these connections.</p>
+
+  <h2>What we do not collect</h2>
+  <p>&#8226; We do not collect personal information<br>
+     &#8226; We do not use analytics or tracking<br>
+     &#8226; We do not use cookies<br>
+     &#8226; We do not share any data with third parties<br>
+     &#8226; We do not require you to create an account or log in</p>
+
+  <h2>Permissions</h2>
+  <p>The extension requests the following Chrome permissions:</p>
+  <p>&#8226; <strong>storage</strong> — to save your channel names and settings locally<br>
+     &#8226; <strong>tabs</strong> — to detect open YouTube stream tabs for chat relay<br>
+     &#8226; <strong>scripting / content scripts</strong> — to inject the chat overlay on your chosen website<br>
+     &#8226; <strong>host permissions</strong> — to run on the sites you configure</p>
+
+  <h2>Open source</h2>
+  <p>The full source code is available on <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>. You can inspect exactly what the extension does.</p>
+
+  <h2>Contact</h2>
+  <p>If you have questions, open an issue on <a href="https://github.com/rahulchhabrani/chat-overlay/issues" target="_blank">GitHub</a>.</p>
+
+  <footer>Multistream Chat Overlay &mdash; <a href="https://chat.rchx.com">chat.rchx.com</a></footer>
+
+</div>
+</body>
+</html>
