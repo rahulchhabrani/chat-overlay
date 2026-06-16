@@ -1,9 +1,7 @@
-// Background service worker
-// Relays YouTube chat messages and fetches Kick chatroom IDs.
-// YouTube chat is now polled by content_youtube.js (same-origin, content script
-// lifetime) — the service worker just relays the messages to the chess tab.
+// Background service worker — manages ALL WebSocket connections
+// Twitch IRC + Kick Pusher live here; YouTube chat is relayed from content_youtube.js
 
-// ── In-memory cache: eliminates storage + tabs.query on every message ────────
+// ── Target tab cache ──────────────────────────────────────────────────────────
 let cachedSite   = 'chess.com';
 let cachedTabIds = new Set();
 
@@ -31,27 +29,185 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 chrome.tabs.onRemoved.addListener(tabId => cachedTabIds.delete(tabId));
 
+function sendToTargetTabs(msg) {
+  if (cachedTabIds.size === 0) {
+    refreshTargetTabs();
+    setTimeout(() => cachedTabIds.forEach(id => chrome.tabs.sendMessage(id, msg).catch(() => {})), 150);
+    return;
+  }
+  cachedTabIds.forEach(id => chrome.tabs.sendMessage(id, msg).catch(() => {}));
+}
+
+// ── Service worker keepalive ──────────────────────────────────────────────────
+// Chrome 116+: SW stays alive while WS messages exchanged within 30s window.
+// We send a PING every 20s when any WS is open to maintain the activity window.
+let keepaliveInterval = null;
+
+function startKeepalive() {
+  if (keepaliveInterval) return;
+  keepaliveInterval = setInterval(() => {
+    if (twitchWs && twitchWs.readyState === WebSocket.OPEN) {
+      twitchWs.send('PING :tmi.twitch.tv');
+    } else if (kickWs && kickWs.readyState === WebSocket.OPEN) {
+      kickWs.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
+    }
+  }, 20000);
+}
+
+function stopKeepalive() {
+  if (keepaliveInterval) { clearInterval(keepaliveInterval); keepaliveInterval = null; }
+}
+
+// Alarm fires every 1 min as a backup — reconnects if SW was killed and lost its WS
+chrome.alarms.create('cco-reconnect', { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name !== 'cco-reconnect') return;
+  if (twitchChannel && (!twitchWs || twitchWs.readyState !== WebSocket.OPEN)) connectTwitch(twitchChannel);
+  if (kickSlug     && (!kickWs   || kickWs.readyState   !== WebSocket.OPEN)) connectKick(kickSlug);
+});
+
+// ── Twitch IRC WebSocket ──────────────────────────────────────────────────────
+let twitchWs = null;
+let twitchChannel = '';
+let twitchReconnectTimer = null;
+
+function connectTwitch(channel) {
+  if (twitchWs) { try { twitchWs.close(); } catch (e) {} twitchWs = null; }
+  if (twitchReconnectTimer) { clearTimeout(twitchReconnectTimer); twitchReconnectTimer = null; }
+  twitchChannel = channel.toLowerCase().replace(/^#/, '').trim();
+  sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣...' });
+
+  try { twitchWs = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); }
+  catch (e) { sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣X' }); return; }
+
+  twitchWs.onopen = () => {
+    twitchWs.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+    twitchWs.send('PASS SCHMOOPIIE');
+    twitchWs.send('NICK justinfan' + (10000 + Math.floor(Math.random() * 990000)));
+    twitchWs.send('JOIN #' + twitchChannel);
+    startKeepalive();
+  };
+  twitchWs.onmessage = e => e.data.split('\r\n').forEach(l => { if (l) parseTwitch(l); });
+  twitchWs.onclose = () => {
+    sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣↻' });
+    twitchReconnectTimer = setTimeout(() => connectTwitch(twitchChannel), 5000);
+  };
+  twitchWs.onerror = () => sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣X' });
+}
+
+function parseTwitch(line) {
+  if (line.startsWith('PING')) { twitchWs.send('PONG :tmi.twitch.tv'); return; }
+  let rest = line, tags = {};
+  if (rest.startsWith('@')) {
+    const sp = rest.indexOf(' ');
+    rest.slice(1, sp).split(';').forEach(p => { const eq = p.indexOf('='); if (eq !== -1) tags[p.slice(0, eq)] = p.slice(eq + 1).replace(/\\s/g, ' '); });
+    rest = rest.slice(sp + 1);
+  }
+  if (rest.includes(' 366 ') || (rest.includes('JOIN') && rest.includes('#' + twitchChannel) && rest.includes('justinfan'))) {
+    sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣' + twitchChannel }); return;
+  }
+  const m = rest.match(/^:(\w+)!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #\w+ :(.+)$/);
+  if (!m) return;
+  sendToTargetTabs({
+    type:     'TWITCH_MSG',
+    username: tags['display-name'] || m[1],
+    color:    tags['color'] || null,
+    text:     m[2],
+    badges:   tags['badges'] || '',
+  });
+}
+
+// ── Kick Pusher WebSocket ─────────────────────────────────────────────────────
+let kickWs = null;
+let kickSlug = '';
+let kickReconnectTimer = null;
+
+function connectKick(channel) {
+  if (kickWs) { try { kickWs.close(); } catch (e) {} kickWs = null; }
+  if (kickReconnectTimer) { clearTimeout(kickReconnectTimer); kickReconnectTimer = null; }
+  kickSlug = channel.toLowerCase().trim();
+  sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢...' });
+
+  fetch('https://kick.com/api/v2/channels/' + encodeURIComponent(kickSlug))
+    .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+    .then(data => {
+      const chatroomId = data.chatroom && data.chatroom.id;
+      if (!chatroomId) { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢X' }); return; }
+      openKickWs(chatroomId, kickSlug);
+    })
+    .catch(() => sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢X' }));
+}
+
+function openKickWs(chatroomId, slug) {
+  const url = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=7.6.0&flash=false';
+  try { kickWs = new WebSocket(url); }
+  catch (e) { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢X' }); return; }
+
+  kickWs.onopen = () => { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢...' }); startKeepalive(); };
+  kickWs.onmessage = e => {
+    let msg; try { msg = JSON.parse(e.data); } catch (err) { return; }
+    if (msg.event === 'pusher:connection_established') {
+      kickWs.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: 'chatrooms.' + chatroomId + '.v2' } }));
+      return;
+    }
+    if (msg.event === 'pusher:ping') { kickWs.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+    if (msg.event === 'pusher_internal:subscription_succeeded') {
+      sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢' + slug }); return;
+    }
+    if (msg.event === 'App\\Events\\ChatMessageEvent') {
+      try {
+        const d = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
+        const rawText = d.content || '';
+        const text = rawText.replace(/\[emote:\d+:([^\]]+)\]/g, '$1');
+        if (text) sendToTargetTabs({
+          type:     'KICK_MSG',
+          username: (d.sender && d.sender.username) || '?',
+          color:    (d.sender && d.sender.identity && d.sender.identity.color) || null,
+          text:     text,
+        });
+      } catch (err) { }
+    }
+  };
+  kickWs.onclose = () => {
+    sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢↻' });
+    kickReconnectTimer = setTimeout(() => openKickWs(chatroomId, slug), 5000);
+  };
+  kickWs.onerror = () => sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢X' });
+}
+
 // ── Message handler ───────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
-  // Fetch Kick chatroom ID
-  if (msg.type === 'GET_KICK_CHATROOM') {
-    fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(msg.channel)}`)
-      .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
-      .then(data => sendResponse({ chatroomId: data.chatroom?.id ?? null }))
-      .catch(() => sendResponse({ chatroomId: null }));
-    return true;
+  if (msg.type === 'TWITCH_CONNECT') {
+    connectTwitch(msg.channel); return;
+  }
+  if (msg.type === 'TWITCH_DISCONNECT') {
+    if (twitchWs) { try { twitchWs.close(); } catch (e) {} twitchWs = null; }
+    if (twitchReconnectTimer) { clearTimeout(twitchReconnectTimer); twitchReconnectTimer = null; }
+    twitchChannel = '';
+    if (!kickSlug) stopKeepalive();
+    return;
+  }
+  if (msg.type === 'KICK_CONNECT') {
+    connectKick(msg.channel); return;
+  }
+  if (msg.type === 'KICK_DISCONNECT') {
+    if (kickWs) { try { kickWs.close(); } catch (e) {} kickWs = null; }
+    if (kickReconnectTimer) { clearTimeout(kickReconnectTimer); kickReconnectTimer = null; }
+    kickSlug = '';
+    if (!twitchChannel) stopKeepalive();
+    return;
   }
 
-  // Relay YT messages from content_youtube.js to the chess tab
+  // Relay YouTube chat from content_youtube.js to the target tab
   if (msg.type === 'YT_CHAT_MSG') {
-    if (cachedTabIds.size === 0) {
-      refreshTargetTabs();
-      setTimeout(() => {
-        cachedTabIds.forEach(id => chrome.tabs.sendMessage(id, msg).catch(() => {}));
-      }, 150);
-      return;
-    }
-    cachedTabIds.forEach(id => chrome.tabs.sendMessage(id, msg).catch(() => {}));
+    sendToTargetTabs(msg); return;
   }
+});
+
+// On SW start, reconnect to previously configured channels
+chrome.storage.sync.get(['twitchChannel', 'kickChannel'], s => {
+  if (s.twitchChannel) connectTwitch(s.twitchChannel);
+  if (s.kickChannel)   connectKick(s.kickChannel);
+  refreshTargetTabs();
 });
