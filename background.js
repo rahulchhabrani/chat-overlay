@@ -167,7 +167,7 @@ function openKickWs(chatroomId, slug) {
       kickWs.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: 'chatrooms.' + chatroomId + '.v2' } }));
       return;
     }
-    if (msg.event === 'pusher:ping') { kickWs.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+    if (msg.event === 'pusher:ping') { e.target.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
     if (msg.event === 'pusher_internal:subscription_succeeded') {
       sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢' + slug }); return;
     }
