@@ -78,7 +78,7 @@
           // Spread messages over time so they trickle in instead of all popping at once
           (function(m, d) {
             setTimeout(function() {
-              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s }, '*');
+              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s, a: m.a }, '*');
             }, d);
           })(msg, msgDelay);
           msgDelay = Math.min(msgDelay + 80, 1200); // 80ms apart, max 1.2s spread
@@ -95,6 +95,7 @@
     if (!r) return null;
     var paid = !!item.liveChatPaidMessageRenderer;
     var member = !!item.liveChatMembershipItemRenderer;
+    var amount = paid && r.purchaseAmountText ? r.purchaseAmountText.simpleText || null : null;
     var id = r.id || Math.random().toString(36).slice(2);
     var u = (r.authorName && r.authorName.simpleText) || '';
     if (!u) return null;
@@ -132,7 +133,7 @@
     });
     if (paid) c = '#FF9800';
     if (member) c = c || '#2BA640';
-    return { id: id, u: u, t: t, c: c, s: paid };
+    return { id: id, u: u, t: t, c: c, s: paid, a: amount };
   }
 
   document.addEventListener('visibilitychange', function () {
