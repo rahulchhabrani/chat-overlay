@@ -78,7 +78,7 @@
           // Spread messages over time so they trickle in instead of all popping at once
           (function(m, d) {
             setTimeout(function() {
-              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s, a: m.a }, '*');
+              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s, a: m.a, hc: m.hc, bc: m.bc }, '*');
             }, d);
           })(msg, msgDelay);
           msgDelay = Math.min(msgDelay + 80, 1200); // 80ms apart, max 1.2s spread
@@ -96,6 +96,12 @@
     var paid = !!item.liveChatPaidMessageRenderer;
     var member = !!item.liveChatMembershipItemRenderer;
     var amount = paid && r.purchaseAmountText ? r.purchaseAmountText.simpleText || null : null;
+    var hc = null, bc = null;
+    if (paid) {
+      var toHex = function(n) { var u = n >>> 0; return '#' + [(u>>16)&255,(u>>8)&255,u&255].map(function(x){return x.toString(16).padStart(2,'0');}).join(''); };
+      if (r.headerBackgroundColor != null) hc = toHex(r.headerBackgroundColor);
+      if (r.bodyBackgroundColor   != null) bc = toHex(r.bodyBackgroundColor);
+    }
     var id = r.id || Math.random().toString(36).slice(2);
     var u = (r.authorName && r.authorName.simpleText) || '';
     if (!u) return null;
@@ -133,7 +139,7 @@
     });
     if (paid) c = '#FF9800';
     if (member) c = c || '#2BA640';
-    return { id: id, u: u, t: t, c: c, s: paid, a: amount };
+    return { id: id, u: u, t: t, c: c, s: paid, a: amount, hc: hc, bc: bc };
   }
 
   document.addEventListener('visibilitychange', function () {
