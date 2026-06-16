@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Chat Overlay",
-  "version": "4.3",
+  "version": "4.4",
   "description": "Overlay your Twitch, Kick & YouTube live chat on any website",
   "permissions": [
     "storage",
     "tabs",
+    "scripting",
     "alarms"
   ],
   "host_permissions": [
@@ -18,15 +19,6 @@
     "128": "icons/icon128.png"
   },
   "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "run_at": "document_end"
-    },
     {
       "matches": [
         "*://www.youtube.com/watch*",
