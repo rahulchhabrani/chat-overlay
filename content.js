@@ -82,13 +82,13 @@
       const scMeta = document.createElement('div');
       scMeta.style.cssText = 'flex:1;min-width:0;';
       const scName = document.createElement('span');
-      scName.style.cssText = 'color:#fff;font-weight:700;font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      scName.style.cssText = 'color:#000;font-weight:700;font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
       scName.textContent = username;
       scMeta.appendChild(scName);
-      if (amount) { const scAmt = document.createElement('span'); scAmt.style.cssText = 'color:rgba(255,255,255,0.88);font-size:11px;font-weight:600;display:block;'; scAmt.textContent = amount; scMeta.appendChild(scAmt); }
+      if (amount) { const scAmt = document.createElement('span'); scAmt.style.cssText = 'color:rgba(0,0,0,0.7);font-size:11px;font-weight:600;display:block;'; scAmt.textContent = amount; scMeta.appendChild(scAmt); }
       scHead.appendChild(scIcon); scHead.appendChild(scMeta);
       row.appendChild(scHead);
-      if (text) { const scBody = document.createElement('div'); scBody.style.cssText = 'padding:6px 10px 8px;background:' + bBg + ';color:#fff;font-size:13px;line-height:1.45;word-break:break-word;'; buildText(scBody, text); row.appendChild(scBody); }
+      if (text) { const scBody = document.createElement('div'); scBody.style.cssText = 'padding:6px 10px 8px;background:' + bBg + ';color:#000;font-size:13px;line-height:1.45;word-break:break-word;'; buildText(scBody, text); row.appendChild(scBody); }
       return row;
     }
 
