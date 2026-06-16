@@ -112,6 +112,34 @@ function connectTwitch(channel) {
   twitchWs.onerror = () => sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣❌' });
 }
 
+function parseTwitchEmotes(rawText, emotesTag) {
+  if (!emotesTag) return rawText;
+  var emotes = [];
+  emotesTag.split('/').forEach(function(part) {
+    var colon = part.indexOf(':');
+    if (colon < 0) return;
+    var id = part.slice(0, colon);
+    part.slice(colon + 1).split(',').forEach(function(pos) {
+      var dash = pos.indexOf('-');
+      if (dash < 0) return;
+      emotes.push({ id: id, start: parseInt(pos, 10), end: parseInt(pos.slice(dash + 1), 10) });
+    });
+  });
+  if (!emotes.length) return rawText;
+  emotes.sort(function(a, b) { return a.start - b.start; });
+  var result = '';
+  var last = 0;
+  emotes.forEach(function(e) {
+    if (e.start > last) result += rawText.slice(last, e.start);
+    var url = 'https://static-cdn.jtvnw.net/emoticons/v2/' + e.id + '/default/dark/1.0';
+    var name = rawText.slice(e.start, e.end + 1);
+    result += '' + url + '' + name + '';
+    last = e.end + 1;
+  });
+  if (last < rawText.length) result += rawText.slice(last);
+  return result;
+}
+
 function parseTwitch(line) {
   if (line.startsWith('PING')) { twitchWs.send('PONG :tmi.twitch.tv'); return; }
   let rest = line, tags = {};
@@ -129,7 +157,7 @@ function parseTwitch(line) {
     type:     'TWITCH_MSG',
     username: tags['display-name'] || m[1],
     color:    tags['color'] || null,
-    text:     m[2],
+    text:     parseTwitchEmotes(m[2], tags['emotes']),
     badges:   tags['badges'] || '',
   });
 }
@@ -175,7 +203,7 @@ function openKickWs(chatroomId, slug) {
       try {
         const d = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
         const rawText = d.content || '';
-        const text = rawText.replace(/\[emote:\d+:([^\]]+)\]/g, '$1');
+        const text = rawText.replace(/\[emote:(\d+):([^\]]+)\]/g, function(_, id, name) { return '\uE000https://files.kick.com/emotes/' + id + '/fullsize\uE001' + name + '\uE002'; });
         if (text) sendToTargetTabs({
           type:     'KICK_MSG',
           username: (d.sender && d.sender.username) || '?',
