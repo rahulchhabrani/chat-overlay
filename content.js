@@ -38,6 +38,31 @@
     style.textContent = '#cco-scroll-btn{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(100,65,200,0.88);color:#fff;border:none;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;z-index:2;letter-spacing:0.3px;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:background 0.15s;}#cco-scroll-btn:hover{background:rgba(120,80,230,0.95);}@keyframes cco-in{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}';
     (document.head || document.documentElement).appendChild(style);
   }
+  // ── Emoji image helper: PUA-delimited custom emoji URLs → DOM nodes ──────────
+  // Format: <url><label>
+  function buildText(container, text) {
+    const parts = text.split('');
+    if (parts[0]) container.appendChild(document.createTextNode(parts[0]));
+    for (let i = 1; i < parts.length; i++) {
+      const e2 = parts[i].indexOf('');
+      if (e2 === -1) { container.appendChild(document.createTextNode('' + parts[i])); continue; }
+      const meta = parts[i].slice(0, e2);
+      const e1 = meta.indexOf('');
+      const url  = e1 === -1 ? meta : meta.slice(0, e1);
+      const lbl  = e1 === -1 ? ''   : meta.slice(e1 + 1);
+      const rest = parts[i].slice(e2 + 1);
+      if (url) {
+        const img = document.createElement('img');
+        img.src = url; img.alt = lbl; img.title = lbl;
+        img.style.cssText = 'width:20px;height:20px;vertical-align:middle;margin:0 1px;border-radius:2px;';
+        container.appendChild(img);
+      } else if (lbl) {
+        container.appendChild(document.createTextNode('[' + lbl + ']'));
+      }
+      if (rest) container.appendChild(document.createTextNode(rest));
+    }
+  }
+
   function buildRow(username, color, text, twitchBadges, platform, isSuperchat, amount, scHdr, scBdy) {
     const pi = PLATFORM_ICON[platform] || { bg: '#444', svg: '' };
     const row = nodePool.pop() || document.createElement('div');
@@ -63,7 +88,7 @@
       if (amount) { const scAmt = document.createElement('span'); scAmt.style.cssText = 'color:rgba(255,255,255,0.88);font-size:11px;font-weight:600;display:block;'; scAmt.textContent = amount; scMeta.appendChild(scAmt); }
       scHead.appendChild(scIcon); scHead.appendChild(scMeta);
       row.appendChild(scHead);
-      if (text) { const scBody = document.createElement('div'); scBody.style.cssText = 'padding:6px 10px 8px;background:' + bBg + ';color:#fff;font-size:13px;line-height:1.45;word-break:break-word;'; scBody.textContent = text; row.appendChild(scBody); }
+      if (text) { const scBody = document.createElement('div'); scBody.style.cssText = 'padding:6px 10px 8px;background:' + bBg + ';color:#fff;font-size:13px;line-height:1.45;word-break:break-word;'; buildText(scBody, text); row.appendChild(scBody); }
       return row;
     }
 
@@ -88,7 +113,7 @@
     sep.textContent = '  ';
     const msgSpan = document.createElement('span');
     msgSpan.style.cssText = 'color:#ffffff;font-weight:400;';
-    msgSpan.textContent = text;
+    buildText(msgSpan, text);
     content.appendChild(nameSpan);
 
 
