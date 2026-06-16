@@ -78,7 +78,7 @@
           // Spread messages over time so they trickle in instead of all popping at once
           (function(m, d) {
             setTimeout(function() {
-              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s, a: m.a, hc: m.hc, bc: m.bc }, '*');
+              window.postMessage({ __cco: 1, u: m.u, t: m.t, c: m.c, s: m.s, a: m.a, hc: m.hc, bc: m.bc }, 'https://www.youtube.com');
             }, d);
           })(msg, msgDelay);
           msgDelay = Math.min(msgDelay + 80, 1200); // 80ms apart, max 1.2s spread
