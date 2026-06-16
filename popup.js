@@ -34,16 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // If site changed, close overlay on old-site tabs
         if (oldSite !== targetSite) {
-          chrome.tabs.query({}, tabs => {
-            tabs.filter(t => t.url && t.url.toLowerCase().includes(oldSite))
-                .forEach(tab => chrome.tabs.sendMessage(tab.id, { type: 'CCO_CLOSE' }).catch(() => {}));
+          chrome.tabs.query({ url: '*://*.' + oldSite + '/*' }, tabs => {
+            tabs.forEach(tab => chrome.tabs.sendMessage(tab.id, { type: 'CCO_CLOSE' }).catch(() => {}));
           });
         }
 
-        // Send update to new-site tabs
-        chrome.tabs.query({}, tabs => {
-          tabs.filter(t => t.url && t.url.toLowerCase().includes(targetSite))
-              .forEach(tab => {
+        // Inject + update new-site tabs (background handles new navigations;
+        // here we handle already-open tabs on the target site)
+        chrome.tabs.query({ url: '*://*.' + targetSite + '/*' }, tabs => {
+          tabs.forEach(tab => {
+            chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] })
+              .catch(() => {})
+              .finally(() => {
                 chrome.tabs.sendMessage(tab.id, {
                   type: 'CCO_UPDATE',
                   twitchChannel,
@@ -53,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   opacity,
                 }).catch(() => {});
               });
+          });
         });
 
         $('status').style.color = '#4caf50';
