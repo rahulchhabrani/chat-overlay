@@ -18,6 +18,7 @@
       text:        e.data.t,
       color:       e.data.c,
       isSuperchat: e.data.s,
+      amount:      e.data.a,
     }).catch(() => {});
   });
 
