@@ -1,9 +1,12 @@
 (function () {
   if (document.getElementById('cco-root')) return;
+  if (window.__cco_closed) return;
+  if (window.__cco_init) return;
+  window.__cco_init = true;
 
   chrome.storage.sync.get(['targetSite'], function(ts) {
     const site = (ts.targetSite || 'chess.com').trim().toLowerCase();
-    if (!location.hostname.includes(site)) return;
+    if (!location.hostname.includes(site)) { window.__cco_init = false; return; }
     initOverlay();
   });
 
