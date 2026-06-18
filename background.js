@@ -1,16 +1,16 @@
 // Background service worker — manages ALL WebSocket connections
 // Twitch IRC + Kick Pusher live here; YouTube chat is relayed from content_youtube.js
 
-// ── Target tab cache ─────────────────────────────────────────────
+// ── Target tab cache ──────────────────────────────────────────────────────────
 let cachedSite   = 'chess.com';
 let cachedTabIds = new Set();
 
-chrome.storage.sync.get(['targetSite'], s => {
+chrome.storage.local.get(['targetSite'], s => {
   cachedSite = (s.targetSite || 'chess.com').trim().toLowerCase();
   refreshTargetTabs();
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync' && changes.targetSite) {
+  if (area === 'local' && changes.targetSite) {
     cachedSite = (changes.targetSite.newValue || 'chess.com').trim().toLowerCase();
     refreshTargetTabs();
   }
@@ -35,7 +35,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 chrome.tabs.onRemoved.addListener(tabId => cachedTabIds.delete(tabId));
 
-// ── Programmatic injection ────────────────────────────────────────────
+// ── Programmatic injection ────────────────────────────────────────────────────
 // content.js is NOT a declarative content script — it is injected only into
 // tabs matching the user's configured target site. This avoids <all_urls>.
 async function injectContentScript(tabId) {
@@ -55,7 +55,7 @@ function sendToTargetTabs(msg) {
   cachedTabIds.forEach(id => chrome.tabs.sendMessage(id, msg).catch(() => {}));
 }
 
-// ── Service worker keepalive ──────────────────────────────────────────
+// ── Service worker keepalive ──────────────────────────────────────────────────
 // Chrome 116+: SW stays alive while WS messages exchanged within 30s window.
 // We send a PING every 20s when any WS is open to maintain the activity window.
 let keepaliveInterval = null;
@@ -63,9 +63,9 @@ let keepaliveInterval = null;
 function startKeepalive() {
   if (keepaliveInterval) return;
   keepaliveInterval = setInterval(() => {
-    if (twitchWs && twitchWs.readyState === WebSocket.OPEN) {
+    if (twitchWs?.readyState === WebSocket.OPEN) {
       twitchWs.send('PING :tmi.twitch.tv');
-    } else if (kickWs && kickWs.readyState === WebSocket.OPEN) {
+    } else if (kickWs?.readyState === WebSocket.OPEN) {
       kickWs.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
     }
   }, 20000);
@@ -83,7 +83,7 @@ chrome.alarms.onAlarm.addListener(alarm => {
   if (kickSlug     && (!kickWs   || kickWs.readyState   !== WebSocket.OPEN)) connectKick(kickSlug);
 });
 
-// ── Twitch IRC WebSocket ────────────────────────────────────────────
+// ── Twitch IRC WebSocket ──────────────────────────────────────────────────────
 let twitchWs = null;
 let twitchChannel = '';
 let twitchReconnectTimer = null;
@@ -134,7 +134,7 @@ function parseTwitch(line) {
   });
 }
 
-// ── Kick Pusher WebSocket ─────────────────────────────────────────
+// ── Kick Pusher WebSocket ─────────────────────────────────────────────────────
 let kickWs = null;
 let kickSlug = '';
 let kickReconnectTimer = null;
@@ -145,10 +145,10 @@ function connectKick(channel) {
   kickSlug = channel.toLowerCase().trim();
   sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢…' });
 
-  fetch('https://kick.com/api/v2/channels/' + encodeURIComponent(kickSlug))
+  fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(kickSlug)}`)
     .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
     .then(data => {
-      const chatroomId = data.chatroom && data.chatroom.id;
+      const chatroomId = data.chatroom?.id;
       if (!chatroomId) { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' }); return; }
       openKickWs(chatroomId, kickSlug);
     })
@@ -156,15 +156,15 @@ function connectKick(channel) {
 }
 
 function openKickWs(chatroomId, slug) {
-  const url = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=7.6.0&flash=false';
+  const url = `wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=7.6.0&flash=false`;
   try { kickWs = new WebSocket(url); }
   catch (e) { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' }); return; }
 
   kickWs.onopen = () => { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢…' }); startKeepalive(); };
   kickWs.onmessage = e => {
-    let msg; try { msg = JSON.parse(e.data); } catch(ex) { return; }
+    let msg; try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.event === 'pusher:connection_established') {
-      kickWs.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: 'chatrooms.' + chatroomId + '.v2' } }));
+      e.target.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: `chatrooms.${chatroomId}.v2` } }));
       return;
     }
     if (msg.event === 'pusher:ping') { e.target.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
@@ -178,11 +178,11 @@ function openKickWs(chatroomId, slug) {
         const text = rawText.replace(/\[emote:\d+:([^\]]+)\]/g, '$1');
         if (text) sendToTargetTabs({
           type:     'KICK_MSG',
-          username: (d.sender && d.sender.username) || '?',
-          color:    (d.sender && d.sender.identity && d.sender.identity.color) || null,
+          username: d.sender?.username || '?',
+          color:    d.sender?.identity?.color || null,
           text,
         });
-      } catch(ex) { }
+      } catch { }
     }
   };
   kickWs.onclose = () => {
@@ -192,7 +192,7 @@ function openKickWs(chatroomId, slug) {
   kickWs.onerror = () => sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' });
 }
 
-// ── Message handler ────────────────────────────────────────────────────────────────────────────────
+// ── Message handler ───────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'TWITCH_CONNECT') {
@@ -223,7 +223,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // On SW start, reconnect to previously configured channels
-chrome.storage.sync.get(['twitchChannel', 'kickChannel'], s => {
+chrome.storage.local.get(['twitchChannel', 'kickChannel'], s => {
   if (s.twitchChannel) connectTwitch(s.twitchChannel);
   if (s.kickChannel)   connectKick(s.kickChannel);
   refreshTargetTabs();
