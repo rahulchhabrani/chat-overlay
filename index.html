@@ -239,6 +239,39 @@ nav {
   margin-bottom: 28px;
 }
 
+/* ORIGIN STORY */
+.origin {
+  max-width: 720px;
+  margin: 100px auto 0;
+  padding: 0 24px;
+  text-align: center;
+}
+.origin-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+.origin-quote {
+  font-size: clamp(22px, 3.5vw, 32px);
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.25;
+  color: var(--text);
+  margin-bottom: 28px;
+}
+.origin-body {
+  font-size: 17px;
+  color: var(--muted);
+  line-height: 1.7;
+  letter-spacing: -0.2px;
+  max-width: 580px;
+  margin: 0 auto;
+}
+.origin-body strong { color: var(--text); }
+
 /* FEATURES */
 .features {
   display: grid;
@@ -420,8 +453,8 @@ footer a:hover { color: var(--text); }
     <span class="p-badge p-kick"><span class="p-dot"></span>Kick</span>
     <span class="p-badge p-yt"><span class="p-dot"></span>YouTube</span>
   </div>
-  <h1>Chat Overlay.</h1>
-  <p class="hero-sub">A free Chrome extension that floats your stream chat on top of any website &mdash; chess.com, games, anywhere.</p>
+  <h1>One screen.<br>All your chats.</h1>
+  <p class="hero-sub">Float Twitch, Kick, and YouTube chat on top of any website &mdash; without a second monitor or squinting at your phone.</p>
   <div class="cta-row">
     <a class="btn-primary" href="https://github.com/rahulchhabrani/chat-overlay/archive/refs/heads/main.zip">&#8595;&ensp;Download Free</a>
     <a class="btn-secondary" href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">View Source</a>
@@ -443,6 +476,14 @@ footer a:hover { color: var(--text); }
     </div>
   </div>
 </div>
+
+<section class="origin">
+  <p class="origin-eyebrow">Why this exists</p>
+  <p class="origin-quote">"I didn't want to buy a second monitor just to read chat."</p>
+  <p class="origin-body">
+    I stream on Twitch, Kick, and YouTube while playing chess on <strong>chess.com</strong> — all on a single Mac. Reading chat meant <strong>glancing at my phone</strong> constantly: tiny text, wrong angle, and I'd lose focus mid-game. A second monitor felt like overkill for a problem that software could solve. So I built this — a floating overlay that keeps chat visible on whatever I'm doing, no second screen required.
+  </p>
+</section>
 
 <section class="section">
   <p class="section-label">Features</p>
