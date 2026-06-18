@@ -3,74 +3,203 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Policy — Multistream Chat Overlay</title>
+<title>Privacy Policy &mdash; Chat Overlay</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23000'/><text x='3' y='23' font-family='-apple-system,BlinkMacSystemFont,sans-serif' font-weight='700' font-size='17' fill='%232997ff'>rx</text></svg>">
+<link rel="canonical" href="https://chat.rchx.com/privacy.html">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background: #080812;
-  color: #e8e8f0;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  min-height: 100vh;
-  padding: 64px 24px 80px;
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #000;
+  --card: rgba(28,28,30,0.72);
+  --border: rgba(255,255,255,0.1);
+  --text: #f5f5f7;
+  --muted: #86868b;
+  --accent: #2997ff;
+  --nav-h: 52px;
+  --radius: 18px;
 }
-.wrap { max-width: 640px; margin: 0 auto; }
-a { color: #a78bfa; text-decoration: none; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  z-index: 1000;
+}
+.nav-left { display: flex; align-items: center; gap: 6px; }
+.nav-back {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-back:hover { color: var(--text); }
+.nav-sep { font-size: 13px; color: rgba(255,255,255,0.15); }
+.nav-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: calc(var(--nav-h) + 80px) 24px 120px;
+}
+
+h1 {
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1.06;
+  margin-bottom: 12px;
+}
+
+.updated {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 64px;
+}
+
+.section {
+  margin-bottom: 52px;
+}
+
+.section h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+.section p {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.7;
+  letter-spacing: -0.1px;
+}
+
+.section p + p {
+  margin-top: 12px;
+}
+
+.highlight-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  margin-bottom: 52px;
+}
+
+.highlight-card p {
+  font-size: 17px;
+  color: var(--text);
+  line-height: 1.6;
+  letter-spacing: -0.2px;
+}
+
+.highlight-card strong {
+  color: var(--accent);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 52px 0;
+}
+
+a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
-.back { display: inline-flex; align-items: center; gap: 6px; color: #6b6b80; font-size: 13px; margin-bottom: 48px; }
-h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
-.updated { color: #6b6b80; font-size: 13px; margin-bottom: 40px; }
-h2 { font-size: 15px; font-weight: 700; margin: 32px 0 10px; color: #c4b5fd; }
-p { font-size: 14px; line-height: 1.8; color: #b0b0c0; }
-footer { margin-top: 56px; color: #6b6b80; font-size: 13px; }
+
+footer {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: -0.1px;
+}
+footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+footer a:hover { color: var(--text); }
+.footer-sep { margin: 0 8px; opacity: 0.4; }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <a class="back" href="https://chat.rchx.com">&#8592; chat.rchx.com</a>
+<nav>
+  <div class="nav-left">
+    <a class="nav-back" href="https://chat.rchx.com">&#8592; Chat Overlay</a>
+    <span class="nav-sep">/</span>
+    <span class="nav-title">Privacy</span>
+  </div>
+</nav>
 
-  <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: June 2026</p>
+<div class="content">
+  <h1>Privacy Policy.</h1>
+  <p class="updated">Last updated June 2026</p>
 
-  <p>Multistream Chat Overlay is a free, open-source Chrome extension. This page explains what data the extension does and does not collect.</p>
+  <div class="highlight-card">
+    <p><strong>The short version:</strong> Chat Overlay collects nothing. No data leaves your browser. No servers. No accounts. No tracking.</p>
+  </div>
 
-  <h2>What we collect</h2>
-  <p>The extension stores the following data locally in your browser using <code>chrome.storage.local</code>:</p>
-  <p>&#8226; Twitch channel name (entered by you in the popup)<br>
-     &#8226; Kick channel name (entered by you in the popup)<br>
-     &#8226; Your chosen target website (e.g. chess.com)<br>
-     &#8226; Recent chat messages (for history across page refreshes)</p>
-  <p>This data never leaves your device. It is not sent to any server, database, or third party.</p>
+  <div class="section">
+    <h2>No data collected</h2>
+    <p>Chat Overlay is a browser extension that runs entirely on your device. It does not collect, store, transmit, or share any personal information whatsoever.</p>
+    <p>There are no servers. There is no database. There is no analytics. There is no crash reporting. Nothing leaves your machine.</p>
+  </div>
 
-  <h2>Third-party connections</h2>
-  <p>When you enter a channel name and connect, the extension opens a direct WebSocket connection from your browser to the platform's own servers:</p>
-  <p>&#8226; Twitch: <code>wss://irc-ws.chat.twitch.tv</code><br>
-     &#8226; Kick: <code>wss://ws-us2.pusher.com</code><br>
-     &#8226; YouTube: reads chat from an open YouTube tab in your browser</p>
-  <p>These connections are governed by each platform's own privacy policy. The extension does not intercept, log, or forward any data from these connections.</p>
+  <div class="section">
+    <h2>What the extension does</h2>
+    <p>The extension connects directly from your browser to Twitch&rsquo;s IRC servers, Kick&rsquo;s Pusher API, and YouTube&rsquo;s chat DOM. These are read-only, real-time connections used solely to display chat messages in the overlay. Channel names you enter are stored locally in your browser&rsquo;s <code>chrome.storage.local</code> &mdash; they never leave your device.</p>
+  </div>
 
-  <h2>What we do not collect</h2>
-  <p>&#8226; We do not collect personal information<br>
-     &#8226; We do not use analytics or tracking<br>
-     &#8226; We do not use cookies<br>
-     &#8226; We do not share any data with third parties<br>
-     &#8226; We do not require you to create an account or log in</p>
+  <div class="section">
+    <h2>Permissions explained</h2>
+    <p>The extension requests permission to run on all URLs so it can display the overlay on any site you visit (chess.com, gaming sites, etc.). It does not read page content, intercept requests, or interact with any page other than to inject the overlay UI.</p>
+  </div>
 
-  <h2>Permissions</h2>
-  <p>The extension requests the following Chrome permissions:</p>
-  <p>&#8226; <strong>storage</strong> — to save your channel names and settings locally<br>
-     &#8226; <strong>tabs</strong> — to detect open YouTube stream tabs for chat relay<br>
-     &#8226; <strong>scripting / content scripts</strong> — to inject the chat overlay on your chosen website<br>
-     &#8226; <strong>host permissions</strong> — to run on the sites you configure</p>
+  <hr>
 
-  <h2>Open source</h2>
-  <p>The full source code is available on <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>. You can inspect exactly what the extension does.</p>
+  <div class="section">
+    <h2>Third-party services</h2>
+    <p>When you connect a channel, your browser makes a direct WebSocket connection to Twitch, Kick, or YouTube. Those connections are subject to their respective privacy policies. Chat Overlay has no control over, and is not responsible for, those services.</p>
+  </div>
 
-  <h2>Contact</h2>
-  <p>If you have questions, open an issue on <a href="https://github.com/rahulchhabrani/chat-overlay/issues" target="_blank">GitHub</a>.</p>
+  <div class="section">
+    <h2>This website</h2>
+    <p>This website (chat.rchx.com) is a static page hosted on GitHub Pages. It uses no cookies, no analytics, no tracking scripts, and sets no local storage. GitHub may log standard server access logs per their <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank">privacy policy</a>.</p>
+  </div>
 
-  <footer>Multistream Chat Overlay &mdash; <a href="https://chat.rchx.com">chat.rchx.com</a></footer>
-
+  <div class="section">
+    <h2>Contact</h2>
+    <p>Questions? Open an issue on <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>.</p>
+  </div>
 </div>
+
+<footer>
+  <a href="https://chat.rchx.com">Chat Overlay</a>
+  <span class="footer-sep">&middot;</span>
+  <a href="https://rchx.com" target="_blank">rchx.com</a>
+  <span class="footer-sep">&middot;</span>
+  <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>
+</footer>
+
 </body>
 </html>
