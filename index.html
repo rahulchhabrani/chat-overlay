@@ -3,368 +3,560 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multistream Chat Overlay — Chrome Extension for Twitch, Kick & YouTube</title>
-<meta name="description" content="Free Chrome extension that overlays Twitch, Kick & YouTube live chat on any website. Perfect for streamers who want to read chat while playing games or chess. No login required.">
-<meta name="keywords" content="chrome extension, twitch chat overlay, kick chat overlay, youtube chat overlay, multistream chat, live chat overlay, stream chat any website, chess.com twitch chat, streamer tools">
-<meta property="og:title" content="Multistream Chat Overlay — Chrome Extension">
+<title>Chat Overlay &mdash; Multistream Chat for Streamers</title>
+<meta name="description" content="Free Chrome extension that overlays Twitch, Kick & YouTube live chat on any website. Perfect for streamers on chess.com and gaming sites. No login required.">
+<meta name="keywords" content="chrome extension, twitch chat overlay, kick chat overlay, youtube chat overlay, multistream chat, live chat overlay, chess.com twitch chat, streamer tools">
+<meta property="og:title" content="Chat Overlay &mdash; Multistream Chat">
 <meta property="og:description" content="Overlay Twitch, Kick & YouTube live chat on any website. Free Chrome extension for streamers.">
 <meta property="og:url" content="https://chat.rchx.com">
 <meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23000'/><text x='3' y='23' font-family='-apple-system,BlinkMacSystemFont,sans-serif' font-weight='700' font-size='17' fill='%232997ff'>rx</text></svg>">
 <link rel="canonical" href="https://chat.rchx.com">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg: #080812;
-  --surface: rgba(255,255,255,0.04);
-  --surface-hover: rgba(255,255,255,0.07);
-  --border: rgba(255,255,255,0.08);
-  --accent: #6c63ff;
-  --accent2: #a78bfa;
-  --text: #e8e8f0;
-  --muted: #6b6b80;
-  --green: #22c55e;
-  --radius: 16px;
+  --bg: #000;
+  --card: rgba(28,28,30,0.72);
+  --card-hover: rgba(44,44,46,0.9);
+  --border: rgba(255,255,255,0.1);
+  --border-hover: rgba(255,255,255,0.18);
+  --text: #f5f5f7;
+  --muted: #86868b;
+  --accent: #2997ff;
+  --green: #30d158;
+  --purple: #bf5af2;
+  --red: #ff453a;
+  --nav-h: 52px;
+  --radius: 18px;
 }
+
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
 
-body::before {
-  content: '';
+/* NAV */
+nav {
   position: fixed;
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(108,99,255,0.12), transparent 70%);
-  top: -200px; left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.wrap {
-  position: relative;
-  z-index: 1;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 64px 24px 80px;
-}
-
-.back {
-  display: inline-flex;
+  top: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--muted);
+  justify-content: space-between;
+  padding: 0 28px;
+  z-index: 1000;
+}
+.nav-left { display: flex; align-items: center; gap: 6px; }
+.nav-back {
   font-size: 13px;
+  color: var(--muted);
   text-decoration: none;
-  margin-bottom: 48px;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.nav-back:hover { color: var(--text); }
+.nav-sep { font-size: 13px; color: rgba(255,255,255,0.15); }
+.nav-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.nav-right a {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
   transition: color 0.2s;
 }
-.back:hover { color: var(--accent2); }
+.nav-right a:hover { color: var(--text); }
 
-/* Hero */
-.hero { margin-bottom: 52px; }
-
-.platform-badges {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
+/* HERO */
+.hero {
+  padding: calc(var(--nav-h) + 100px) 24px 80px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
 }
-.platform-badge {
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(41,151,255,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.platform-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.p-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 4px 10px;
-  border-radius: 20px;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  border-radius: 100px;
 }
-.badge-twitch { background: rgba(145,71,255,0.18); border: 1px solid rgba(145,71,255,0.4); color: #c084fc; }
-.badge-kick   { background: rgba(83,252,24,0.12);  border: 1px solid rgba(83,252,24,0.35); color: #86efac; }
-.badge-yt     { background: rgba(255,0,0,0.12);    border: 1px solid rgba(255,0,0,0.35);   color: #fca5a5; }
+.p-twitch { background: rgba(191,90,242,0.12); border: 1px solid rgba(191,90,242,0.3); color: var(--purple); }
+.p-kick { background: rgba(48,209,88,0.1); border: 1px solid rgba(48,209,88,0.3); color: var(--green); }
+.p-yt { background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.3); color: var(--red); }
+.p-dot { width: 5px; height: 5px; border-radius: 50%; }
+.p-twitch .p-dot { background: var(--purple); }
+.p-kick .p-dot { background: var(--green); }
+.p-yt .p-dot { background: var(--red); }
 
 .hero h1 {
-  font-size: clamp(30px, 5vw, 46px);
-  font-weight: 800;
-  letter-spacing: -1px;
-  line-height: 1.15;
-  background: linear-gradient(135deg, #fff 30%, var(--accent2) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 16px;
+  font-size: clamp(48px, 7vw, 80px);
+  font-weight: 700;
+  letter-spacing: -2.5px;
+  line-height: 1.04;
+  color: var(--text);
+  max-width: 700px;
+  margin: 0 auto 20px;
 }
 
-.hero p {
+.hero-sub {
+  font-size: 19px;
   color: var(--muted);
-  font-size: 16px;
-  line-height: 1.7;
-  max-width: 540px;
+  line-height: 1.55;
+  max-width: 420px;
+  margin: 0 auto 40px;
+  letter-spacing: -0.2px;
 }
 
 .cta-row {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 32px;
 }
 
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: var(--accent);
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px 24px;
-  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 13px 26px;
+  border-radius: 980px;
   text-decoration: none;
   transition: opacity 0.2s, transform 0.15s;
+  letter-spacing: -0.2px;
 }
-.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-primary:hover { opacity: 0.86; transform: scale(1.02); }
 
 .btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface);
+  background: rgba(255,255,255,0.08);
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  padding: 12px 24px;
-  border-radius: 12px;
+  padding: 13px 26px;
+  border-radius: 980px;
   text-decoration: none;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s;
+  letter-spacing: -0.2px;
 }
-.btn-secondary:hover { background: var(--surface-hover); border-color: rgba(108,99,255,0.3); }
+.btn-secondary:hover { background: rgba(255,255,255,0.12); }
 
-/* Section label */
+/* SCREENSHOT */
+.screenshot-wrap {
+  max-width: 960px;
+  margin: 72px auto 0;
+  padding: 0 24px;
+}
+
+.browser-chrome {
+  background: rgba(28,28,30,0.9);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.06);
+}
+
+.browser-bar {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(44,44,46,0.6);
+}
+.browser-dots { display: flex; gap: 6px; }
+.browser-dots span { width: 11px; height: 11px; border-radius: 50%; }
+.dot-red { background: #ff5f57; }
+.dot-yellow { background: #febc2e; }
+.dot-green { background: #28c840; }
+
+.browser-url {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-family: -apple-system, sans-serif;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.browser-body img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* SECTION */
+.section {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 100px 24px 0;
+}
+
 .section-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 20px;
+  margin-bottom: 28px;
 }
 
-/* Screenshot */
-.screenshot {
-  margin-bottom: 52px;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-}
-.screenshot img { width: 100%; height: auto; display: block; }
-
-/* Features grid */
+/* FEATURES */
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 52px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
 }
 
 .feature {
-  background: var(--surface);
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 28px 24px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
-.feature .f-icon { font-size: 22px; margin-bottom: 10px; display: block; }
-.feature .f-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-.feature .f-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
 
-/* Install steps */
-.steps {
-  background: var(--surface);
+/* Round outer corners */
+.feature:first-child { border-radius: var(--radius) 0 0 0; }
+.feature:nth-child(4) { border-radius: 0 var(--radius) 0 0; }
+.feature:nth-child(5) { border-radius: 0 0 0 var(--radius); }
+.feature:last-child { border-radius: 0 0 var(--radius) 0; }
+
+.f-icon { font-size: 26px; margin-bottom: 14px; display: block; }
+.f-name { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; margin-bottom: 6px; }
+.f-desc { font-size: 13px; color: var(--muted); line-height: 1.52; }
+
+@media(max-width: 720px) {
+  .features { grid-template-columns: 1fr 1fr; }
+  .feature:first-child { border-radius: var(--radius) 0 0 0; }
+  .feature:nth-child(2) { border-radius: 0 var(--radius) 0 0; }
+  .feature:nth-child(7) { border-radius: 0 0 0 var(--radius); }
+  .feature:last-child { border-radius: 0 0 var(--radius) 0; }
+  .feature:nth-child(4), .feature:nth-child(5) { border-radius: 0; }
+}
+
+/* INSTALL */
+.install-card {
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 28px;
-  margin-bottom: 52px;
+  padding: 40px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
+
+.install-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 32px;
+}
+
+.steps { display: flex; flex-direction: column; gap: 0; }
 
 .step {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-start;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.step:last-child { border-bottom: none; padding-bottom: 0; }
 .step:first-child { padding-top: 0; }
+.step:last-child { border-bottom: none; padding-bottom: 0; }
 
 .step-num {
-  width: 26px; height: 26px;
+  width: 28px; height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: rgba(41,151,255,0.15);
+  border: 1px solid rgba(41,151,255,0.3);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 800;
-  flex-shrink: 0; color: #fff;
+  font-size: 12px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
 }
-
-.step-text {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text);
-  padding-top: 2px;
-}
-.step-text code {
-  background: rgba(108,99,255,0.15);
-  color: var(--accent2);
+.step-body { flex: 1; padding-top: 3px; }
+.step-body strong { color: var(--text); font-weight: 600; }
+.step-body p { font-size: 14px; color: var(--muted); line-height: 1.6; margin-top: 3px; }
+code {
+  background: rgba(41,151,255,0.1);
+  color: var(--accent);
   font-size: 12px;
-  padding: 1px 7px;
-  border-radius: 6px;
+  padding: 2px 7px;
+  border-radius: 5px;
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-/* How it works */
-.how-it-works {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 28px;
-  margin-bottom: 52px;
-}
-.how-it-works h3 {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: var(--accent2);
-}
-.how-it-works p {
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.7;
+/* HOW TO USE */
+.how-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
 }
 
+.how-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 28px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.how-card:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.how-card:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+
+.how-platform {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.how-dot { width: 7px; height: 7px; border-radius: 50%; }
+.how-card:nth-child(1) .how-dot { background: var(--purple); }
+.how-card:nth-child(2) .how-dot { background: var(--green); }
+.how-card:nth-child(3) .how-dot { background: var(--red); }
+.how-card:nth-child(4) .how-dot { background: var(--accent); }
+
+.how-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  margin-bottom: 10px;
+}
+
+.how-card p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media(max-width: 600px) {
+  .how-grid { grid-template-columns: 1fr; }
+  .how-card:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+  .how-card:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+}
+
+/* FOOTER */
 footer {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 40px 24px;
   text-align: center;
   color: var(--muted);
   font-size: 13px;
-  margin-top: 20px;
+  margin-top: 100px;
+  letter-spacing: -0.1px;
 }
-footer a { color: var(--accent2); text-decoration: none; }
-footer a:hover { text-decoration: underline; }
+footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+footer a:hover { color: var(--text); }
+.footer-sep { margin: 0 8px; opacity: 0.4; }
+
+@media(max-width: 480px) {
+  .hero h1 { letter-spacing: -1.8px; }
+  .install-card { padding: 24px; }
+  .features { grid-template-columns: 1fr; }
+  .feature:first-child, .feature:nth-child(4), .feature:nth-child(5), .feature:last-child { border-radius: 0; }
+  .feature:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+  .feature:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <a class="back" href="https://rchx.com">&#8592; rchx.com</a>
+<nav>
+  <div class="nav-left">
+    <a class="nav-back" href="https://rchx.com">&#8592; rchx</a>
+    <span class="nav-sep">/</span>
+    <span class="nav-title">Chat Overlay</span>
+  </div>
+  <div class="nav-right">
+    <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>
+  </div>
+</nav>
 
-  <div class="hero">
-    <div class="platform-badges">
-      <span class="platform-badge badge-twitch">&#9679; Twitch</span>
-      <span class="platform-badge badge-kick">&#9679; Kick</span>
-      <span class="platform-badge badge-yt">&#9679; YouTube</span>
+<section class="hero">
+  <div class="platform-row">
+    <span class="p-badge p-twitch"><span class="p-dot"></span>Twitch</span>
+    <span class="p-badge p-kick"><span class="p-dot"></span>Kick</span>
+    <span class="p-badge p-yt"><span class="p-dot"></span>YouTube</span>
+  </div>
+  <h1>Chat Overlay.</h1>
+  <p class="hero-sub">A free Chrome extension that floats your stream chat on top of any website &mdash; chess.com, games, anywhere.</p>
+  <div class="cta-row">
+    <a class="btn-primary" href="https://github.com/rahulchhabrani/chat-overlay/archive/refs/heads/main.zip">&#8595;&ensp;Download Free</a>
+    <a class="btn-secondary" href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">View Source</a>
+  </div>
+</section>
+
+<div class="screenshot-wrap">
+  <div class="browser-chrome">
+    <div class="browser-bar">
+      <div class="browser-dots">
+        <span class="dot-red"></span>
+        <span class="dot-yellow"></span>
+        <span class="dot-green"></span>
+      </div>
+      <div class="browser-url">chess.com/play/online</div>
     </div>
-    <h1>Multistream Chat Overlay</h1>
-    <p>A free Chrome extension that floats your Twitch, Kick &amp; YouTube live chat on top of <strong>any website</strong> &mdash; so you never miss a message while you play, browse, or work.</p>
-    <div class="cta-row">
-      <a class="btn-primary" href="https://github.com/rahulchhabrani/chat-overlay/archive/refs/heads/main.zip">&#8595; Download ZIP</a>
-      <a class="btn-secondary" href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">View on GitHub</a>
+    <div class="browser-body">
+      <img src="screenshot.jpg" alt="Chat Overlay running on chess.com — Twitch chat visible over the board" loading="lazy">
     </div>
   </div>
+</div>
 
-  <div class="section-label">Preview</div>
-  <div class="screenshot">
-    <img src="https://raw.githubusercontent.com/rahulchhabrani/chat-overlay/main/preview.jpg" alt="Multistream Chat Overlay showing Twitch chat on chess.com" onerror="this.style.display='none'">
-  </div>
-
-  <div class="section-label">Features</div>
+<section class="section">
+  <p class="section-label">Features</p>
   <div class="features">
     <div class="feature">
-      <span class="f-icon">🟣</span>
-      <div class="f-name">Twitch Chat</div>
-      <div class="f-desc">Native IRC WebSocket connection. No login or token needed.</div>
+      <span class="f-icon">&#128172;</span>
+      <div class="f-name">All Platforms</div>
+      <div class="f-desc">Twitch, Kick, and YouTube chat simultaneously in one overlay.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">🟢</span>
-      <div class="f-name">Kick Chat</div>
-      <div class="f-desc">Real-time via Pusher WebSocket. Connects in seconds.</div>
-    </div>
-    <div class="feature">
-      <span class="f-icon">🔴</span>
-      <div class="f-name">YouTube Chat</div>
-      <div class="f-desc">Relays live chat from any open YouTube stream tab.</div>
-    </div>
-    <div class="feature">
-      <span class="f-icon">🖱️</span>
+      <span class="f-icon">&#128471;</span>
       <div class="f-name">Draggable &amp; Resizable</div>
-      <div class="f-desc">Position and resize the overlay anywhere on screen.</div>
+      <div class="f-desc">Position and resize anywhere on screen. Stays where you put it.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">👻</span>
+      <span class="f-icon">&#128123;</span>
       <div class="f-name">Dim Mode</div>
-      <div class="f-desc">Go transparent so the overlay never blocks your content.</div>
+      <div class="f-desc">Ghost-transparent mode so chat never blocks what&rsquo;s behind it.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">💾</span>
-      <div class="f-name">Chat History</div>
-      <div class="f-desc">Messages persist across page refreshes automatically.</div>
-    </div>
-    <div class="feature">
-      <span class="f-icon">⚡</span>
-      <div class="f-name">Smooth Rendering</div>
-      <div class="f-desc">Messages trickle in with animations, never burst-pop.</div>
-    </div>
-    <div class="feature">
-      <span class="f-icon">🌐</span>
+      <span class="f-icon">&#9881;</span>
       <div class="f-name">Works Everywhere</div>
-      <div class="f-desc">chess.com, gaming sites, any domain you choose.</div>
+      <div class="f-desc">Native WebSockets bypass Content Security Policies on strict sites.</div>
+    </div>
+    <div class="feature">
+      <span class="f-icon">&#128190;</span>
+      <div class="f-name">Persists Across Reloads</div>
+      <div class="f-desc">Chat history stays even after you refresh the page.</div>
+    </div>
+    <div class="feature">
+      <span class="f-icon">&#9889;</span>
+      <div class="f-name">Zero Lag</div>
+      <div class="f-desc">Direct IRC and Pusher connections. Messages arrive instantly.</div>
+    </div>
+    <div class="feature">
+      <span class="f-icon">&#128204;</span>
+      <div class="f-name">Collapse</div>
+      <div class="f-desc">Minimize to a slim header bar with a single click.</div>
+    </div>
+    <div class="feature">
+      <span class="f-icon">&#128274;</span>
+      <div class="f-name">No Login Needed</div>
+      <div class="f-desc">No account, no token. Just enter a channel name and connect.</div>
     </div>
   </div>
+</section>
 
-  <div class="section-label">Install in 4 Steps</div>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-text"><strong>Download</strong> &mdash; click the button above and unzip the file</div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-text">Open <code>chrome://extensions</code> and enable <strong>Developer mode</strong> (top-right toggle)</div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-text">Click <strong>Load unpacked</strong> and select the unzipped <code>chat-overlay-main</code> folder</div>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-text">Click the <strong>Chat Overlay</strong> icon in your toolbar, enter your channel names, and hit <strong>Save &amp; Connect</strong></div>
+<section class="section">
+  <p class="section-label">Install in 4 steps</p>
+  <div class="install-card">
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Download</strong>
+          <p>Click the Download button above and unzip the file anywhere on your computer.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Enable Developer Mode</strong>
+          <p>Open <code>chrome://extensions</code> in Chrome and toggle <strong>Developer mode</strong> on (top-right corner).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Load the extension</strong>
+          <p>Click <strong>Load unpacked</strong> and select the unzipped <code>chat-overlay-main</code> folder.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Connect your channels</strong>
+          <p>Click the <strong>Chat Overlay</strong> icon in your toolbar, enter your Twitch / Kick / YouTube channel, and hit <strong>Save &amp; Connect</strong>.</p>
+        </div>
+      </div>
     </div>
   </div>
+</section>
 
-  <div class="section-label">How to Use</div>
-  <div class="how-it-works">
-    <h3>Twitch &amp; Kick</h3>
-    <p>Enter your channel name in the popup and click Save &amp; Connect. The overlay appears on whichever site you've set as the target (default: chess.com). Change the target site in the popup to any domain you want.</p>
-    <br>
-    <h3>YouTube</h3>
-    <p>Open the YouTube live stream in any Chrome tab. Chat messages from that stream will automatically appear in the overlay on your target site.</p>
-    <br>
-    <h3>All three at once</h3>
-    <p>You can run Twitch, Kick, and YouTube chat simultaneously. The colored dots in the overlay header show which platforms are live &mdash; purple for Twitch, green for Kick, red for YouTube.</p>
-    <br>
-    <h3>Why does this work on strict sites like chess.com?</h3>
-    <p>Most chat overlays use iframes, which get blocked by Content Security Policies. This extension uses direct WebSocket connections to each platform's native API &mdash; so it works everywhere.</p>
+<section class="section" style="padding-bottom: 0;">
+  <p class="section-label">How it works</p>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-platform"><span class="how-dot"></span>Twitch</div>
+      <div class="how-title">Native IRC</div>
+      <p>Connects directly to Twitch&rsquo;s IRC over WebSocket. No login or OAuth token required.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-platform"><span class="how-dot"></span>Kick</div>
+      <div class="how-title">Pusher WebSocket</div>
+      <p>Connects to Kick&rsquo;s Pusher API in real time. Instant message delivery, no polling.</p>
+    </div>
+    <div class=how-card">
+      <div class="how-platform"><span class="how-dot"></span>YouTube</div>
+      <div class="how-title">DOM Relay</div>
+      <p>Reads chat from an open YouTube stream tab and relays it to the overlay automaticaly.</p>
+    </div>
+    <div class="how-card">
+      <div class="how-platform"><span class="how-dot"></span>Why it works everywhere</div>
+      <div class="how-title">No iframes</div>
+      <p>Most overlays use iframes which get blocked by strict CSPs. Direct WebSockets bypass that &mdash; works on chess.com, gaming sites, anywhere.</p>
+    </div>
   </div>
+</section>
 
-  <footer>
-    Built by <a href="https://rchx.com" target="_blank">Rahul</a> &nbsp;&middot;&nbsp;
-    <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a> &nbsp;&middot;&nbsp;
-    <a href="/privacy">Privacy</a>
-  </footer>
+<footer>
+  Built by <a href="https://rchx.com" target="_blank">Rahul</a>
+  <span class="footer-sep">&middot;</span>
+  <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>
+  <span class="footer-sep">&middot;</span>
+  <a href="/privacy.html">Privacy</a>
+</footer>
 
-</div>
 </body>
 </html>
