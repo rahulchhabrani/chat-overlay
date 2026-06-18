@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const $ = id => document.getElementById(id);
 
-  chrome.storage.sync.get(['twitchChannel', 'kickChannel', 'targetSite', 'overlayWidth', 'overlayHeight', 'overlayOpacity'], s => {
+  chrome.storage.local.get(['twitchChannel', 'kickChannel', 'targetSite', 'overlayWidth', 'overlayHeight', 'overlayOpacity'], s => {
     if (s.twitchChannel) $('twitch').value  = s.twitchChannel;
     if (s.kickChannel)   $('kick').value    = s.kickChannel;
     if (s.targetSite)    $('site').value    = s.targetSite;
@@ -27,10 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const opacity = parseInt($('opacity').value) / 100;
 
     // Get old site so we can close overlay there if site changed
-    chrome.storage.sync.get(['targetSite'], old => {
+    chrome.storage.local.get(['targetSite'], old => {
       const oldSite = (old.targetSite || 'chess.com').trim().toLowerCase();
 
-      chrome.storage.sync.set({ twitchChannel, kickChannel, targetSite, overlayWidth: width, overlayHeight: height, overlayOpacity: opacity }, () => {
+      chrome.storage.local.set({ twitchChannel, kickChannel, targetSite, overlayWidth: width, overlayHeight: height, overlayOpacity: opacity }, () => {
 
         // If site changed, close overlay on old-site tabs
         if (oldSite !== targetSite) {
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         $('status').style.color = '#4caf50';
-        $('status').textContent = '✓ Saved! Reload ' + targetSite + ' if needed.';
+        $('status').textContent = 'â Saved! Reload ' + targetSite + ' if needed.';
         setTimeout(() => { $('status').textContent = ''; }, 4000);
       });
     });
