@@ -339,8 +339,10 @@ code {
   -webkit-backdrop-filter: blur(16px);
 }
 
-.how-card:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-.how-card:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.how-card:first-child  { border-radius: var(--radius) 0 0 0; }
+.how-card:nth-child(2) { border-radius: 0 var(--radius) 0 0; }
+.how-card:nth-child(3) { border-radius: 0 0 0 var(--radius); }
+.how-card:last-child   { border-radius: 0 0 var(--radius) 0; }
 
 .how-platform {
   display: flex;
@@ -537,10 +539,11 @@ footer a:hover { color: var(--text); }
       <div class="how-title">Pusher WebSocket</div>
       <p>Connects to Kick&rsquo;s Pusher API in real time. Instant message delivery, no polling.</p>
     </div>
-    <div class=how-card">
+    <div class="how-card">
       <div class="how-platform"><span class="how-dot"></span>YouTube</div>
       <div class="how-title">DOM Relay</div>
-      <p>Reads chat from an open YouTube stream tab and relays it to the overlay automaticaly.</p>
+      <p>Reads chat from an open YouTube stream tab and relays it to the overlay automatically.</p>
+
     </div>
     <div class="how-card">
       <div class="how-platform"><span class="how-dot"></span>Why it works everywhere</div>
