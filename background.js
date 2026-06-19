@@ -1,7 +1,7 @@
-// Background service worker — manages ALL WebSocket connections
+// Background service worker â manages ALL WebSocket connections
 // Twitch IRC + Kick Pusher live here; YouTube chat is relayed from content_youtube.js
 
-// ── Target tab cache ──────────────────────────────────────────────────────────
+// ââ Target tab cache ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let cachedSite   = 'chess.com';
 let cachedTabIds = new Set();
 
@@ -35,14 +35,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 chrome.tabs.onRemoved.addListener(tabId => cachedTabIds.delete(tabId));
 
-// ── Programmatic injection ────────────────────────────────────────────────────
-// content.js is NOT a declarative content script — it is injected only into
+// ââ Programmatic injection ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// content.js is NOT a declarative content script â it is injected only into
 // tabs matching the user's configured target site. This avoids <all_urls>.
 async function injectContentScript(tabId) {
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
   } catch (e) {
-    // Non-injectable tabs (chrome://, PDF, etc.) — silently ignore
+    // Non-injectable tabs (chrome://, PDF, etc.) â silently ignore
   }
 }
 
@@ -55,7 +55,7 @@ function sendToTargetTabs(msg) {
   cachedTabIds.forEach(id => chrome.tabs.sendMessage(id, msg).catch(() => {}));
 }
 
-// ── Service worker keepalive ──────────────────────────────────────────────────
+// ââ Service worker keepalive ââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Chrome 116+: SW stays alive while WS messages exchanged within 30s window.
 // We send a PING every 20s when any WS is open to maintain the activity window.
 let keepaliveInterval = null;
@@ -75,7 +75,7 @@ function stopKeepalive() {
   if (keepaliveInterval) { clearInterval(keepaliveInterval); keepaliveInterval = null; }
 }
 
-// Alarm fires every 1 min as a backup — reconnects if SW was killed and lost its WS
+// Alarm fires every 1 min as a backup â reconnects if SW was killed and lost its WS
 chrome.alarms.create('cco-reconnect', { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name !== 'cco-reconnect') return;
@@ -83,7 +83,7 @@ chrome.alarms.onAlarm.addListener(alarm => {
   if (kickSlug     && (!kickWs   || kickWs.readyState   !== WebSocket.OPEN)) connectKick(kickSlug);
 });
 
-// ── Twitch IRC WebSocket ──────────────────────────────────────────────────────
+// ââ Twitch IRC WebSocket ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let twitchWs = null;
 let twitchChannel = '';
 let twitchReconnectTimer = null;
@@ -92,24 +92,26 @@ function connectTwitch(channel) {
   if (twitchWs) { try { twitchWs.close(); } catch (e) {} twitchWs = null; }
   if (twitchReconnectTimer) { clearTimeout(twitchReconnectTimer); twitchReconnectTimer = null; }
   twitchChannel = channel.toLowerCase().replace(/^#/, '').trim();
-  sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣…' });
+  sendToTargetTabs({ type: 'TWITCH_STATUS', status: 'ð£â¦' });
 
-  try { twitchWs = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); }
-  catch (e) { sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣❌' }); return; }
+  let ws;
+  try { ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); twitchWs = ws; }
+  catch (e) { sendToTargetTabs({ type: 'TWITCH_STATUS', status: 'ð£â' }); return; }
 
-  twitchWs.onopen = () => {
-    twitchWs.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-    twitchWs.send('PASS SCHMOOPIIE');
-    twitchWs.send('NICK justinfan' + (10000 + Math.floor(Math.random() * 990000)));
-    twitchWs.send('JOIN #' + twitchChannel);
+  ws.onopen = () => {
+    ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+    ws.send('PASS SCHMOOPIIE');
+    ws.send('NICK justinfan' + (10000 + Math.floor(Math.random() * 990000)));
+    ws.send('JOIN #' + twitchChannel);
     startKeepalive();
   };
-  twitchWs.onmessage = e => e.data.split('\r\n').forEach(l => { if (l) parseTwitch(l); });
-  twitchWs.onclose = () => {
-    sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣↻' });
+  ws.onmessage = e => e.data.split('\r\n').forEach(l => { if (l) parseTwitch(l); });
+  ws.onclose = () => {
+    if (twitchWs !== ws) return; // already superseded â do not reconnect
+    sendToTargetTabs({ type: 'TWITCH_STATUS', status: 'ð£â»' });
     twitchReconnectTimer = setTimeout(() => connectTwitch(twitchChannel), 5000);
   };
-  twitchWs.onerror = () => sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣❌' });
+  ws.onerror = () => sendToTargetTabs({ type: 'TWITCH_STATUS', status: 'ð£â' });
 }
 
 function parseTwitch(line) {
@@ -121,7 +123,7 @@ function parseTwitch(line) {
     rest = rest.slice(sp + 1);
   }
   if (rest.includes(' 366 ') || (rest.includes('JOIN') && rest.includes('#' + twitchChannel) && rest.includes('justinfan'))) {
-    sendToTargetTabs({ type: 'TWITCH_STATUS', status: '🟣' + twitchChannel }); return;
+    sendToTargetTabs({ type: 'TWITCH_STATUS', status: 'ð£' + twitchChannel }); return;
   }
   const m = rest.match(/^:(\w+)!\w+@\w+\.tmi\.twitch\.tv PRIVMSG #\w+ :(.+)$/);
   if (!m) return;
@@ -134,7 +136,7 @@ function parseTwitch(line) {
   });
 }
 
-// ── Kick Pusher WebSocket ─────────────────────────────────────────────────────
+// ââ Kick Pusher WebSocket âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let kickWs = null;
 let kickSlug = '';
 let kickReconnectTimer = null;
@@ -143,33 +145,35 @@ function connectKick(channel) {
   if (kickWs) { try { kickWs.close(); } catch (e) {} kickWs = null; }
   if (kickReconnectTimer) { clearTimeout(kickReconnectTimer); kickReconnectTimer = null; }
   kickSlug = channel.toLowerCase().trim();
-  sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢…' });
+  sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â¦' });
 
   fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(kickSlug)}`)
     .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
     .then(data => {
       const chatroomId = data.chatroom?.id;
-      if (!chatroomId) { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' }); return; }
+      if (!chatroomId) { sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â' }); return; }
       openKickWs(chatroomId, kickSlug);
     })
-    .catch(() => sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' }));
+    .catch(() => sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â' }));
 }
 
 function openKickWs(chatroomId, slug) {
   const url = `wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=7.6.0&flash=false`;
-  try { kickWs = new WebSocket(url); }
-  catch (e) { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' }); return; }
+  let ws;
+  try { ws = new WebSocket(url); kickWs = ws; }
+  catch (e) { sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â' }); return; }
 
-  kickWs.onopen = () => { sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢…' }); startKeepalive(); };
-  kickWs.onmessage = e => {
+  ws.onopen = () => { sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â¦' }); startKeepalive(); };
+  ws.onmessage = e => {
+    if (kickWs !== ws) return; // superseded â discard messages from old connection
     let msg; try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.event === 'pusher:connection_established') {
-      e.target.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: `chatrooms.${chatroomId}.v2` } }));
+      ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: `chatrooms.${chatroomId}.v2` } }));
       return;
     }
-    if (msg.event === 'pusher:ping') { e.target.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+    if (msg.event === 'pusher:ping') { ws.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
     if (msg.event === 'pusher_internal:subscription_succeeded') {
-      sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢' + slug }); return;
+      sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢' + slug }); return;
     }
     if (msg.event === 'App\\Events\\ChatMessageEvent') {
       try {
@@ -185,14 +189,15 @@ function openKickWs(chatroomId, slug) {
       } catch { }
     }
   };
-  kickWs.onclose = () => {
-    sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢↻' });
+  ws.onclose = () => {
+    if (kickWs !== ws) return; // already superseded â do not reconnect
+    sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â»' });
     kickReconnectTimer = setTimeout(() => openKickWs(chatroomId, slug), 5000);
   };
-  kickWs.onerror = () => sendToTargetTabs({ type: 'KICK_STATUS', status: '🟢❌' });
+  ws.onerror = () => sendToTargetTabs({ type: 'KICK_STATUS', status: 'ð¢â' });
 }
 
-// ── Message handler ───────────────────────────────────────────────────────────
+// ââ Message handler âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'TWITCH_CONNECT') {
@@ -216,7 +221,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 
-  // Relay YouTube chat from content_youtube.js → target tab
+  // Relay YouTube chat from content_youtube.js â target tab
   if (msg.type === 'YT_CHAT_MSG') {
     sendToTargetTabs(msg); return;
   }
