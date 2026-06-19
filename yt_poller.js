@@ -5,7 +5,7 @@
   if (window.__cco_poll) return;
   window.__cco_poll = true;
 
-  var cont = null, pollTimer = null, seen = new Set();
+  var cont = null, pollTimer = null, seen = new Set(), failCount = 0;
 
   function getCtx() {
     var d = (window.ytcfg && window.ytcfg.data_) || {};
@@ -40,6 +40,18 @@
     pollTimer = setTimeout(poll, ms);
   }
 
+  function handleFail() {
+    failCount++;
+    // After 3 consecutive failures try to re-init from current page state
+    // (handles stale continuation tokens mid-stream)
+    if (failCount >= 3) {
+      failCount = 0;
+      cont = null;
+      if (init()) { poll(); return; }
+    }
+    sched(5000);
+  }
+
   function poll() {
     if (!cont) return;
     var ctx = getCtx();
@@ -53,14 +65,17 @@
       },
       body: JSON.stringify({ context: ctx, continuation: cont })
     })
-      .then(function (r) { if (!r.ok) { sched(5000); return null; } return r.json(); })
+      .then(function (r) { if (!r.ok) { handleFail(); return null; } return r.json(); })
       .then(function (data) {
         if (!data) return;
         var lcc = data.continuationContents && data.continuationContents.liveChatContinuation;
-        if (!lcc) { sched(5000); return; }
+        if (!lcc) { handleFail(); return; }
+        failCount = 0; // reset on success
         var nc = (lcc.continuations || [])[0];
+        // Handle all continuation types YouTube may return (reloadContinuationData was missing)
         var next = (nc && nc.invalidationContinuationData && nc.invalidationContinuationData.continuation)
-                || (nc && nc.timedContinuationData && nc.timedContinuationData.continuation);
+                || (nc && nc.timedContinuationData && nc.timedContinuationData.continuation)
+                || (nc && nc.reloadContinuationData && nc.reloadContinuationData.continuation);
         var delay = Math.min(
           (nc && nc.invalidationContinuationData && nc.invalidationContinuationData.timeoutMs)
           || (nc && nc.timedContinuationData && nc.timedContinuationData.timeoutMs) || 5000,
@@ -85,7 +100,7 @@
         });
         sched(delay);
       })
-      .catch(function () { sched(5000); });
+      .catch(function () { handleFail(); });
   }
 
   function parse(item) {
@@ -108,13 +123,13 @@
     var t = '';
     if (r.message && r.message.runs) {
       t = r.message.runs.map(function (x) {
-        // x.text can be "" on emoji runs — check truthiness, not null
+        // x.text can be "" on emoji runs â check truthiness, not null
         if (x.text) return x.text;
         if (x.emoji) {
           var ei = x.emoji.emojiId || '';
-          // Standard Unicode emoji: emojiId IS the character itself (e.g. "👍")
+          // Standard Unicode emoji: emojiId IS the character itself (e.g. "ð")
           if (ei && !x.emoji.isCustomEmoji) return ei;
-          // Custom channel emoji: embed image URL using PUA delimiters \uE000…\uE002
+          // Custom channel emoji: embed image URL using PUA delimiters îâ¦î
           // so the renderer can create <img> elements without innerHTML
           var acc = x.emoji.image && x.emoji.image.accessibility
                  && x.emoji.image.accessibility.accessibilityData
@@ -122,7 +137,7 @@
           var thumbs = x.emoji.image && x.emoji.image.thumbnails;
           var eurl = thumbs && thumbs[0] && thumbs[0].url || '';
           var elbl = acc || (x.emoji.shortcuts && x.emoji.shortcuts[0]) || '';
-          if (eurl) return '' + eurl + '' + elbl + '';
+          if (eurl) return 'î' + eurl + 'î' + elbl + 'î';
           if (elbl) return '[' + elbl + ']';
           return '';
         }
@@ -131,7 +146,7 @@
     } else if (r.headerSubtext && r.headerSubtext.runs) {
       t = r.headerSubtext.runs.map(function (x) { return x.text || ''; }).join('');
     }
-    if (!t) t = member ? '★ New member!' : '';
+    if (!t) t = member ? 'â New member!' : '';
     if (!t) return null;
     var c = null;
     (r.authorBadges || []).forEach(function (b) {
@@ -151,6 +166,17 @@
       if (pollTimer) clearTimeout(pollTimer);
       poll();
     }
+  });
+
+  // YouTube SPA navigation â reset and restart when navigating to a new live page
+  document.addEventListener('yt-navigate-finish', function () {
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    cont = null;
+    failCount = 0;
+    seen = new Set();
+    var n = 0, iv = setInterval(function () {
+      if (init() || ++n > 60) { clearInterval(iv); if (cont) poll(); }
+    }, 500);
   });
 
   if (init()) {
