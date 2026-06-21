@@ -4,112 +4,259 @@
   <meta charset="utf-8">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      width: 290px;
-      background: #12121f;
-      color: #ddd;
+      width: 360px;
+      background: #13141f;
+      color: #dde1f0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      padding: 14px;
       font-size: 13px;
+      padding-bottom: 16px;
     }
-    .title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 14px; }
-    label {
+
+    .header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 14px 14px 16px;
+    }
+    .header-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      flex-shrink: 0;
       display: block;
-      font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.7px;
-      color: #444; margin-bottom: 4px;
     }
-    input[type="text"] {
-      width: 100%;
-      background: #1c1c2e; border: 1px solid #2a2a40; border-radius: 6px;
-      color: #eee; padding: 8px 11px; font-size: 13px; outline: none;
-      transition: border-color 0.15s; margin-bottom: 12px;
+    .header-title { font-size: 17px; font-weight: 700; color: #fff; flex: 1; }
+    .close-btn {
+      width: 30px; height: 30px;
+      background: #1e1f30; border: 1px solid #2e2f46; border-radius: 8px;
+      color: #666; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
     }
-    input[type="text"]:focus { border-color: var(--accent); }
+    .close-btn:hover { background: #2a2b3e; color: #aaa; }
 
-    .section { margin-bottom: 4px; }
+    .divider { height: 1px; background: #1e2035; margin-bottom: 16px; }
+    .dim-divider { height: 1px; background: #1e2035; margin: 0 16px 16px; }
+
+    .section { padding: 0 16px; margin-bottom: 16px; }
     .section-header {
-      display: flex; align-items: center; gap: 6px;
-      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
     }
-    .platform-dot {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    .platform-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; color: #6b6f8e; flex: 1;
     }
-    .section-label { font-size: 11px; font-weight: 700; color: #666; }
+    .connected-badge {
+      font-size: 11px; font-weight: 600; color: #3dca74; display: none;
+    }
+    .connected-badge.visible { display: inline; }
 
-    hr { border: none; border-top: 1px solid #1e1e30; margin: 12px 0; }
-
-    .row { display: flex; gap: 10px; margin-bottom: 12px; }
-    .row > div { flex: 1; }
-    input[type="number"] {
-      width: 100%;
-      background: #1c1c2e; border: 1px solid #2a2a40; border-radius: 6px;
-      color: #eee; padding: 7px 10px; font-size: 12px; outline: none;
+    .yt-status {
+      font-size: 11px; font-weight: 600; color: #555;
+      transition: color 0.3s;
     }
-    .range-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .range-row label { margin: 0; white-space: nowrap; }
-    input[type="range"] { flex: 1; accent-color: #9147ff; }
-    .range-val { font-size: 11px; color: #555; width: 28px; text-align: right; }
+    .yt-status.live { color: #3dca74; }
+
+    .input-wrap {
+      display: flex; align-items: center;
+      background: #0e0f1a; border: 1px solid #252636; border-radius: 10px;
+      overflow: hidden; transition: border-color 0.15s;
+    }
+    .input-wrap:hover  { border-color: #3a3b54; }
+    .input-wrap:focus-within { border-color: #7822e0; }
+
+    .input-prefix {
+      padding: 0 4px 0 14px; color: #555;
+      font-size: 14px; font-weight: 500; user-select: none; flex-shrink: 0;
+    }
+    .input-wrap input[type="text"] {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #eaecff; font-size: 14px; font-weight: 500;
+      padding: 11px 6px 11px 6px;
+    }
+    .input-wrap input[type="text"]::placeholder { color: #2e3050; }
+
+    .clear-btn {
+      display: none; align-items: center; justify-content: center;
+      width: 28px; height: 28px; margin-right: 6px;
+      background: #1e1f30; border: none; border-radius: 6px;
+      color: #555; font-size: 14px; cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .clear-btn:hover { background: #2a2b40; color: #aaa; }
+    .input-wrap.has-value .clear-btn { display: flex; }
+
+    .yt-note {
+      margin: -4px 16px 16px;
+      font-size: 11px; color: #35374f; line-height: 1.5;
+    }
+
+    .dim-section { padding: 0 16px; }
+    .dim-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .dim-col { flex: 1; }
+    .dim-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; color: #454663; margin-bottom: 8px;
+    }
+    .num-wrap {
+      display: flex; align-items: center;
+      background: #0e0f1a; border: 1px solid #252636; border-radius: 10px;
+      overflow: hidden; transition: border-color 0.15s;
+    }
+    .num-wrap:hover { border-color: #3a3b54; }
+    .num-wrap:focus-within { border-color: #7822e0; }
+    .num-wrap input[type="number"] {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #eaecff; font-size: 14px; font-weight: 500;
+      padding: 10px 4px 10px 14px;
+      -moz-appearance: textfield;
+    }
+    .num-wrap input[type="number"]::-webkit-outer-spin-button,
+    .num-wrap input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .num-suffix { padding-right: 12px; font-size: 12px; color: #454663; }
+
+    .opacity-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; padding: 0 16px;
+    }
+    .opacity-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; color: #454663;
+    }
+    .opacity-val { font-size: 12px; font-weight: 700; color: #8b45ff; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: calc(100% - 32px); margin: 0 16px 18px;
+      height: 6px; border-radius: 3px; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 0 2px #7822e0;
+      cursor: pointer; transition: box-shadow 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 3px #9b45ff;
+    }
 
     .btn {
-      width: 100%; background: #9147ff; color: #fff;
-      border: none; border-radius: 6px; padding: 9px;
-      font-size: 13px; font-weight: 700; cursor: pointer;
+      display: block; width: calc(100% - 32px); margin: 0 16px;
+      background: linear-gradient(90deg, #7822e0, #9b45ff);
+      color: #fff; border: none; border-radius: 12px;
+      padding: 13px; font-size: 15px; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.3px;
+      transition: opacity 0.15s, transform 0.1s;
     }
-    .btn:hover { background: #7d2ff0; }
-    .status { font-size: 11px; text-align: center; margin-top: 7px; min-height: 14px; }
+    .btn:hover  { opacity: 0.9; }
+    .btn:active { transform: scale(0.98); }
+    .btn.saved  {
+      background: linear-gradient(90deg, #1a6e3a, #27a355);
+      pointer-events: none;
+    }
 
-    .hint { font-size: 10px; color: #333; margin-top: -8px; margin-bottom: 12px; line-height: 1.4; }
+    .status {
+      font-size: 11px; text-align: center; margin-top: 9px;
+      min-height: 14px; color: #3dca74; padding: 0 16px;
+    }
   </style>
 </head>
 <body>
-  <div class="title">💬 Chat Overlay</div>
+
+  <!-- Header -->
+  <div class="header">
+    <img src="icons/icon128.png" class="header-icon" alt="Chat Overlay">
+    <span class="header-title">Chat Overlay</span>
+    <button class="close-btn" id="close-btn">×</button>
+  </div>
+  <div class="divider"></div>
 
   <!-- Twitch -->
   <div class="section">
     <div class="section-header">
       <div class="platform-dot" style="background:#9147ff;"></div>
       <span class="section-label">TWITCH</span>
+      <span class="connected-badge" id="twitch-status">✓ connected</span>
     </div>
-    <label>Channel name</label>
-    <input type="text" id="twitch" placeholder="rahulgambit" style="--accent:#9147ff;">
+    <div class="input-wrap" id="twitch-wrap">
+      <span class="input-prefix">@</span>
+      <input type="text" id="twitch" placeholder="e.g. rahulgambit"
+             autocomplete="off" spellcheck="false">
+      <button class="clear-btn" id="twitch-clear" tabindex="-1" title="Disconnect">✕</button>
+    </div>
   </div>
 
   <!-- Kick -->
   <div class="section">
     <div class="section-header">
-      <div class="platform-dot" style="background:#53FC18;"></div>
+      <div class="platform-dot" style="background:#53b520;"></div>
       <span class="section-label">KICK</span>
+      <span class="connected-badge" id="kick-status">✓ connected</span>
     </div>
-    <label>Channel name</label>
-    <input type="text" id="kick" placeholder="rahulgambit" style="--accent:#53FC18;">
+    <div class="input-wrap" id="kick-wrap">
+      <span class="input-prefix">@</span>
+      <input type="text" id="kick" placeholder="e.g. rahulgambit"
+             autocomplete="off" spellcheck="false">
+      <button class="clear-btn" id="kick-clear" tabindex="-1" title="Disconnect">✕</button>
+    </div>
   </div>
+
+  <!-- YouTube -->
+  <div class="section" style="margin-bottom:6px;">
+    <div class="section-header" style="margin-bottom:0;">
+      <div class="platform-dot" style="background:#ff3030;"></div>
+      <span class="section-label">YOUTUBE</span>
+      <span class="yt-status" id="yt-status">auto-detect</span>
+    </div>
+  </div>
+
+  <p class="yt-note">YouTube chat connects automatically, just keep your live stream <strong style="color:#4a4d6e;">Pop-out chat</strong> tab open.</p>
 
   <!-- Website -->
   <div class="section">
     <div class="section-header">
-      <div class="platform-dot" style="background:#4fc3f7;"></div>
+      <div class="platform-dot" style="background:#5c6bc0;"></div>
       <span class="section-label">SHOW OVERLAY ON</span>
     </div>
-    <label>Website (hostname)</label>
-    <input type="text" id="site" placeholder="chess.com" style="--accent:#4fc3f7;">
+    <div class="input-wrap" id="site-wrap">
+      <span class="input-prefix" style="font-size:16px; color:#444;">⊕</span>
+      <input type="text" id="site" placeholder="chess.com"
+             autocomplete="off" spellcheck="false">
+      <button class="clear-btn" id="site-clear" tabindex="-1" title="Clear">✕</button>
+    </div>
   </div>
 
-  <p class="hint">YouTube chat is automatic — just keep your live stream tab open.</p>
+  <div class="dim-divider"></div>
 
-  <hr>
-
-  <div class="row">
-    <div><label>Width (px)</label><input type="number" id="width" value="300" min="150" max="600"></div>
-    <div><label>Height (px)</label><input type="number" id="height" value="460" min="130" max="900"></div>
+  <!-- Width / Height -->
+  <div class="dim-section">
+    <div class="dim-row">
+      <div class="dim-col">
+        <div class="dim-label">WIDTH</div>
+        <div class="num-wrap">
+          <input type="number" id="width" value="300" min="150" max="600">
+          <span class="num-suffix">px</span>
+        </div>
+      </div>
+      <div class="dim-col">
+        <div class="dim-label">HEIGHT</div>
+        <div class="num-wrap">
+          <input type="number" id="height" value="460" min="130" max="900">
+          <span class="num-suffix">px</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="range-row">
-    <label>Opacity</label>
-    <input type="range" id="opacity" min="10" max="100" value="92">
-    <span class="range-val" id="opacityVal">92%</span>
-  </div>
 
-  <button class="btn" id="save">Save &amp; Connect</button>
+  <!-- Opacity -->
+  <div class="opacity-header">
+    <span class="opacity-label">OPACITY</span>
+    <span class="opacity-val" id="opacityVal">92%</span>
+  </div>
+  <input type="range" id="opacity" min="10" max="100" value="92">
+
+  <!-- Save -->
+  <button class="btn" id="save">✓  Save &amp; Connect</button>
   <div class="status" id="status"></div>
 
   <script src="popup.js"></script>
