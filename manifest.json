@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Chat Overlay",
-  "version": "4.6",
+  "name": "Chat Overlay – Twitch, Kick & YouTube",
+  "version": "4.7",
   "description": "Overlay your Twitch, Kick & YouTube live chat on any website",
   "permissions": [
     "storage",
