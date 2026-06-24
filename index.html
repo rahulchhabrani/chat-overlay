@@ -3,19 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat Overlay &mdash; Multistream Chat for Streamers</title>
+<title>Chat Overlay — Twitch, Kick &amp; YouTube Chat Extension for Chrome</title>
 <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png">
 <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
 <link rel="apple-touch-icon" sizes="128x128" href="icons/icon128.png">
-<meta name="description" content="Free Chrome extension that overlays Twitch, Kick & YouTube live chat on any website. Perfect for streamers on chess.com and gaming sites. No login required.">
+<meta name="description" content="Free Chrome extension that overlays Twitch, Kick &amp; YouTube live chat on any website. Perfect for streamers on chess.com and gaming sites. No login required.">
 <meta name="keywords" content="chrome extension, twitch chat overlay, kick chat overlay, youtube chat overlay, multistream chat, live chat overlay, chess.com twitch chat, streamer tools">
-<meta property="og:title" content="Chat Overlay &mdash; Multistream Chat">
-<meta property="og:description" content="Overlay Twitch, Kick & YouTube live chat on any website. Free Chrome extension for streamers.">
+<meta property="og:title" content="Chat Overlay — Multistream Chat">
+<meta property="og:description" content="Overlay Twitch, Kick &amp; YouTube live chat on any website. Free Chrome extension for streamers.">
 <meta property="og:url" content="https://chat.rchx.com">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23000'/><text x='3' y='23' font-family='-apple-system,BlinkMacSystemFont,sans-serif' font-weight='700' font-size='17' fill='%232997ff'>rx</text></svg>">
-<link rel="canonical" href="https://chat.rchx.com">
+<meta property="og:image" content="https://chat.rchx.com/screenshot.jpg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Chat Overlay – Twitch, Kick & YouTube",
+  "operatingSystem": "Chrome",
+  "applicationCategory": "BrowserApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "url": "https://chromewebstore.google.com/detail/chat-overlay-%E2%80%93-twitch-kic/ckbekljbdfajcbomkmbcalhmbdfeonnc",
+  "description": "Float Twitch, Kick, and YouTube chat on top of any website.",
+  "author": {
+    "@type": "Person",
+    "name": "Rahul Chhabrani"
+  }
+}
+</script>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -57,24 +76,24 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
-  z-index: 1000;
+  padding: 0 24px;
+  z-index: 100;
 }
-.nav-left { display: flex; align-items: center; gap: 6px; }
+
+.nav-left { display: flex; align-items: center; gap: 8px; }
 .nav-back {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--muted);
   text-decoration: none;
   transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 .nav-back:hover { color: var(--text); }
-.nav-sep { font-size: 13px; color: rgba(255,255,255,0.15); }
-.nav-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.nav-sep { color: var(--muted); opacity: 0.4; font-size: 14px; }
+.nav-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .nav-right a {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--muted);
   text-decoration: none;
   transition: color 0.2s;
@@ -160,7 +179,7 @@ nav {
   transition: opacity 0.2s, transform 0.15s;
   letter-spacing: -0.2px;
 }
-.btn-primary:hover { opacity: 0.86; transform: scale(1.02); }
+.btn-primary:hover { opacity: 0.86; transform: translateY(-1px); }
 
 .btn-secondary {
   display: inline-flex;
@@ -178,6 +197,24 @@ nav {
   letter-spacing: -0.2px;
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+
+.hero-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.hero-github {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.hero-github a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.hero-github a:hover { color: var(--text); }
 
 /* SCREENSHOT */
 .screenshot-wrap {
@@ -210,39 +247,6 @@ nav {
   margin-bottom: 28px;
 }
 
-/* ORIGIN STORY */
-.origin {
-  max-width: 720px;
-  margin: 100px auto 0;
-  padding: 0 24px;
-  text-align: center;
-}
-.origin-eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 28px;
-}
-.origin-quote {
-  font-size: clamp(22px, 3.5vw, 32px);
-  font-weight: 700;
-  letter-spacing: -1px;
-  line-height: 1.25;
-  color: var(--text);
-  margin-bottom: 28px;
-}
-.origin-body {
-  font-size: 17px;
-  color: var(--muted);
-  line-height: 1.7;
-  letter-spacing: -0.2px;
-  max-width: 580px;
-  margin: 0 auto;
-}
-.origin-body strong { color: var(--text); }
-
 /* FEATURES */
 .features {
   display: grid;
@@ -272,9 +276,9 @@ nav {
   .features { grid-template-columns: 1fr 1fr; }
   .feature:first-child { border-radius: var(--radius) 0 0 0; }
   .feature:nth-child(2) { border-radius: 0 var(--radius) 0 0; }
-  .feature:nth-child(7) { border-radius: 0 0 0 var(--radius); }
+  .feature:nth-child(5) { border-radius: 0 0 0 var(--radius); }
   .feature:last-child { border-radius: 0 0 var(--radius) 0; }
-  .feature:nth-child(4), .feature:nth-child(5) { border-radius: 0; }
+  .feature:nth-child(3), .feature:nth-child(4) { border-radius: 0; }
 }
 
 /* INSTALL */
@@ -328,57 +332,16 @@ code {
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-/* HOW TO USE */
-.how-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
+/* SECOND CTA */
+.cta-bottom {
+  text-align: center;
+  padding: 100px 24px 0;
 }
-
-.how-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 28px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-.how-card:first-child  { border-radius: var(--radius) 0 0 0; }
-.how-card:nth-child(2) { border-radius: 0 var(--radius) 0 0; }
-.how-card:nth-child(3) { border-radius: 0 0 0 var(--radius); }
-.how-card:last-child   { border-radius: 0 0 var(--radius) 0; }
-
-.how-platform {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.cta-bottom p {
+  margin-top: 16px;
   font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-.how-dot { width: 7px; height: 7px; border-radius: 50%; }
-.how-card:nth-child(1) .how-dot { background: var(--purple); }
-.how-card:nth-child(2) .how-dot { background: var(--green); }
-.how-card:nth-child(3) .how-dot { background: var(--red); }
-.how-card:nth-child(4) .how-dot { background: var(--accent); }
-
-.how-title {
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-  margin-bottom: 10px;
-}
-
-.how-card p {
-  font-size: 14px;
   color: var(--muted);
-  line-height: 1.6;
-}
-
-@media(max-width: 600px) {
-  .how-grid { grid-template-columns: 1fr; }
-  .how-card:first-child { border-radius: var(--radius) var(--radius) 0 0; }
-  .how-card:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+  opacity: 0.7;
 }
 
 /* FOOTER */
@@ -427,62 +390,46 @@ footer a:hover { color: var(--text); }
   <h1>One screen.<br>All your chats.</h1>
   <p class="hero-sub">Float Twitch, Kick, and YouTube chat on top of any website &mdash; without a second monitor or squinting at your phone.</p>
   <div class="cta-row">
-     <a class="btn-primary" href="https://chromewebstore.google.com/detail/chat-overlay-%E2%80%93-twitch-kic/ckbekljbdfajcbomkmbcalhmbdfeonnc" target="_blank">Add to Chrome &mdash; Free</a>
+    <a class="btn-primary" href="https://chromewebstore.google.com/detail/chat-overlay-%E2%80%93-twitch-kic/ckbekljbdfajcbomkmbcalhmbdfeonnc" target="_blank">Add to Chrome &mdash; Free</a>
   </div>
+  <p class="hero-note">No data collected. No account. No tracking.</p>
+  <p class="hero-github"><a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">View source on GitHub &rarr;</a></p>
 </section>
 
 <div class="screenshot-wrap">
-  <img src="screenshot.jpg" alt="Chat Overlay running on chess.com â Twitch chat visible over the board" loading="lazy">
+  <img src="screenshot.jpg" alt="Chat Overlay running on chess.com &ndash; Twitch chat visible over the board" loading="lazy">
 </div>
 
-<section class="origin">
-  <p class="origin-eyebrow">Why this exists</p>
-  <p class="origin-quote">"I didn't want to buy a second monitor just to read chat."</p>
-  <p class="origin-body">
-    I stream on Twitch, Kick, and YouTube while playing chess on <strong>chess.com</strong> all on a single Mac. Reading chat meant <strong>glancing at my phone</strong> constantly: tiny text, wrong angle, and I'd lose focus mid-game. A second monitor felt like overkill for a problem that software could solve. So I built this floating overlay that keeps chat visible on whatever I'm doing, no second screen required.
-  </p>
-</section>
-
 <section class="section">
-  <p class="section-label">Features</p>
+  <h2 class="section-label">Features</h2>
   <div class="features">
     <div class="feature">
-      <span class="f-icon">&#128172;</span>
+      <span class="f-icon">&#x1F4AC;</span>
       <div class="f-name">All Platforms</div>
       <div class="f-desc">Twitch, Kick, and YouTube chat simultaneously in one overlay.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">&#128471;</span>
+      <span class="f-icon">&#x2997;</span>
       <div class="f-name">Draggable &amp; Resizable</div>
       <div class="f-desc">Position and resize anywhere on screen. Stays where you put it.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">&#128123;</span>
+      <span class="f-icon">&#x1F47B;</span>
       <div class="f-name">Dim Mode</div>
       <div class="f-desc">Ghost-transparent mode so chat never blocks what&rsquo;s behind it.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">&#9881;</span>
+      <span class="f-icon">&#x2699;</span>
       <div class="f-name">Works Everywhere</div>
-      <div class="f-desc">Native WebSockets bypass Content Security Policies on strict sites.</div>
+      <div class="f-desc">Works on chess.com, Kick, Twitch, anywhere &mdash; even sites that block iframes.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">&#128190;</span>
-      <div class="f-name">Persists Across Reloads</div>
-      <div class="f-desc">Chat history stays even after you refresh the page.</div>
-    </div>
-    <div class="feature">
-      <span class="f-icon">&#9889;</span>
-      <div class="f-name">Zero Lag</div>
-      <div class="f-desc">Direct IRC and Pusher connections. Messages arrive instantly.</div>
-    </div>
-    <div class="feature">
-      <span class="f-icon">&#128204;</span>
+      <span class="f-icon">&#x1F4CC;</span>
       <div class="f-name">Collapse</div>
       <div class="f-desc">Minimize to a slim header bar with a single click.</div>
     </div>
     <div class="feature">
-      <span class="f-icon">&#128274;</span>
+      <span class="f-icon">&#x1F512;</span>
       <div class="f-name">No Login Needed</div>
       <div class="f-desc">No account, no token. Just enter a channel name and connect.</div>
     </div>
@@ -506,7 +453,6 @@ footer a:hover { color: var(--text); }
           <p>Click the <strong>Chat Overlay</strong> icon in your Chrome toolbar to open the popup.</p>
         </div>
       </div>
-      </div>
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-body">
@@ -518,38 +464,19 @@ footer a:hover { color: var(--text); }
   </div>
 </section>
 
-<section class="section" style="padding-bottom: 0;">
-  <div class="how-grid">
-    <div class="how-card">
-      <div class="how-platform"><span class="how-dot"></span>Twitch</div>
-      <div class="how-title">Native IRC</div>
-      <p>Connects directly to Twitch&rsquo;s IRC over WebSocket. No login or OAuth token required.</p>
-    </div>
-    <div class="how-card">
-      <div class="how-platform"><span class="how-dot"></span>Kick</div>
-      <div class="how-title">Pusher WebSocket</div>
-      <p>Connects to Kick&rsquo;s Pusher API in real time. Instant message delivery, no polling.</p>
-    </div>
-    <div class="how-card">
-      <div class="how-platform"><span class="how-dot"></span>YouTube</div>
-      <div class="how-title">DOM Relay</div>
-      <p>Reads chat from an open YouTube stream tab and relays it to the overlay automatically.</p>
-
-    </div>
-    <div class="how-card">
-      <div class="how-platform"><span class="how-dot"></span>Why it works everywhere</div>
-      <div class="how-title">No iframes</div>
-      <p>Most overlays use iframes which get blocked by strict CSPs. Direct WebSockets bypass that &mdash; works on chess.com, gaming sites, anywhere.</p>
-    </div>
-  </div>
-</section>
+<div class="cta-bottom">
+  <a class="btn-primary" href="https://chromewebstore.google.com/detail/chat-overlay-%E2%80%93-twitch-kic/ckbekljbdfajcbomkmbcalhmbdfeonnc" target="_blank">Add to Chrome &mdash; Free</a>
+  <p>Free forever &middot; No account needed</p>
+</div>
 
 <footer>
-  Built by <a href="https://rchx.com" target="_blank">Rahul</a>
+  Built by <a href="https://x.com/rahulchhabrani" target="_blank">Rahul</a>
   <span class="footer-sep">&middot;</span>
   <a href="https://github.com/rahulchhabrani/chat-overlay" target="_blank">GitHub</a>
   <span class="footer-sep">&middot;</span>
   <a href="/privacy.html">Privacy</a>
+  <span class="footer-sep">&middot;</span>
+  v4.7
 </footer>
 
 </body>
